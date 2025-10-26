@@ -1,0 +1,100 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/chromedp/chromedp"
+	_ "github.com/microsoft/go-mssqldb"
+)
+
+type Job struct {
+	Title       string `json:"title"`
+	Company     string `json:"company"`
+	Description string `json:"description"`
+	URL         string `json:"url"`
+}
+
+func connectDB() (*sql.DB, error) {
+	connString := "server=localhost;user id=sa;password=YourPassword123;database=JobsDB"
+	db, err := sql.Open("sqlserver", connString)
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
+func main() {
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.ExecPath(`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`),
+	)
+
+	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
+
+	ctx, cancel := chromedp.NewContext(allocCtx)
+	defer cancel()
+
+	ctx, cancel = context.WithTimeout(ctx, 300*time.Second)
+	defer cancel()
+
+	url := "https://staff.am/am/jobs"
+	var jobs []Job
+
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(url),
+		chromedp.WaitVisible(`a[href*="/am/jobs/"]`, chromedp.ByQuery),
+		chromedp.EvaluateAsDevTools(`
+			Array.from(document.querySelectorAll('a[href*="/am/jobs/"]')).map(jobLink => {
+				const title = jobLink.innerText.trim();
+				const company = jobLink.closest(".job-list-item-row")?.querySelector('.job_list_item_title + div a')?.innerText.trim() || "";
+				const fullURL = jobLink.href;
+				return { title, company, description: "", url: fullURL };
+			});
+		`, &jobs),
+	)
+	if err != nil {
+		log.Fatal("Scraping error (Title/Company/URL):", err)
+	}
+	log.Printf("Գտնվել է %d աշխատանք", len(jobs))
+
+	for i, job := range jobs {
+		var desc string
+		log.Printf("[%d/%d] Ստանում է %s description-ը...", i+1, len(jobs), job.Title)
+
+		err := chromedp.Run(ctx,
+			chromedp.Navigate(job.URL),
+			chromedp.WaitVisible(`.job-description`, chromedp.ByQuery),
+			chromedp.Text(`.job-description`, &desc, chromedp.NodeVisible, chromedp.ByQuery),
+		)
+		if err != nil {
+			log.Printf("Description scrape error for %s: %v", job.Title, err)
+			continue
+		}
+		jobs[i].Description = desc
+	}
+
+	data, _ := json.MarshalIndent(jobs, "", "  ")
+	fmt.Println(string(data))
+
+	db, err := connectDB()
+	if err != nil {
+		log.Fatal("DB connection error:", err)
+	}
+	defer db.Close()
+
+	for _, job := range jobs {
+		_, err = db.Exec("INSERT INTO Job1 (Title, Company, Description) VALUES (@p1, @p2, @p3)",
+			job.Title, job.Company, job.Description)
+
+		if err != nil {
+			log.Printf("Insert error for %s: %v", job.Title, err)
+		}
+	}
+
+	fmt.Println("✅ All jobs with descriptions saved into SQL Server database!")
+}
