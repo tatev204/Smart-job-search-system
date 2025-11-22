@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func jobAmRequest() {
+func jobAmRequest() []Job_Am {
 	resp, err := http.Get("https://job.am/api/jobs")
 	if err != nil {
 		panic(err)
@@ -36,4 +36,5 @@ func jobAmRequest() {
 		fmt.Printf("%d | %s | %s | %s | Deadline: %s\n",
 			job.ID, job.Title, job.Company, job.Location, job.Deadline.Format("2006-01-02"))
 	}
+	return jobs
 }

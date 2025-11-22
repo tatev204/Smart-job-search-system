@@ -4,21 +4,26 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/robfig/cron/v3"
 	"io"
 	"net/http"
-	"os"
+	dbPkg "staff_scraper/db"
 	"time"
 )
 
 func main() {
+	ctx := context.Background()
+	// Initialize shared DB pool once
+	dbPkg.Init(ctx)
+	defer dbPkg.Close()
+	pool := dbPkg.Get()
 
 	page := 1
 	for page >= 1 && page <= 2 {
 		page++
 		lang := "am"
-		url := fmt.Sprintf("https://staff.am/_next/data/GTSsVSPRXlynfsHXnASP7/%s/jobs.json?page=%d", lang, page)
+		url := fmt.Sprintf("https://staff.am/_next/data/wjWoLYaWeeZJxHHNnq6tj/%s/jobs.json?page=%d", lang, page)
 
 		resp, err := http.Get(url)
 		if err != nil {
@@ -39,16 +44,12 @@ func main() {
 			return
 		}
 
-		conn, err := pgx.Connect(context.Background(),
-			"postgres://postgres:tatev1234@localhost:5432/JobsDB?sslmode=disable")
-		if err != nil {
-			fmt.Println("Database connection error:", err)
-			os.Exit(1)
-		}
-		defer conn.Close(context.Background())
+		// Use shared connection pool
+		makeDbInsertion(ctx, pool, data)
 
-		makeDbInsertion(conn, data)
 	}
+	var jobAm = jobAmRequest()
+	makeJobAmDBInsertion(ctx, pool, jobAm)
 	//jobAmRequest()
 }
 
@@ -72,21 +73,24 @@ func makeUpdate() {
 	// m running forever
 }
 
-func makeDbInsertion(conn *pgx.Conn, data StaffResponse) {
+func makeDbInsertion(ctx context.Context, pool *pgxpool.Pool, data StaffResponse) {
 	for _, job := range data.PageProps.Jobs {
-		_, err := conn.Exec(context.Background(), `
+		_, err := pool.Exec(ctx, `
 			INSERT INTO jobs
-				(job_id, title_en, title_am, city_en, city_am, company_en, company_am, company_image, is_remote, deadline)
+				(job_id, title, company, description, source_url, source_platform, location, salary_range, is_analyzed, search_vector, created_at)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-			ON CONFLICT (job_id) DO NOTHING;
-	`,
+				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`,
 			job.ID,
-			job.Title.En, job.Title.Am,
-			job.JobCity.Title.En, job.JobCity.Title.Am,
-			job.CompaniesStruct.Title.En, job.CompaniesStruct.Title.Am,
-			job.CompaniesStruct.ProfileImage,
-			job.IsRemote,
+			job.Title.En,
+			job.CompaniesStruct.Title.En,
+			job.Title.En,
+			"staff.am",
+			"staff.am",
+			job.JobCity.Title.En,
+			"100000",
+			false,
+			"sd",
 			job.Deadline,
 		)
 		if err != nil {
@@ -94,5 +98,33 @@ func makeDbInsertion(conn *pgx.Conn, data StaffResponse) {
 			continue
 		}
 		fmt.Printf("✅ Added job: %s at %s\n", job.Title.En, job.CompaniesStruct.Title.En)
+	}
+}
+
+func makeJobAmDBInsertion(ctx context.Context, pool *pgxpool.Pool, data []Job_Am) {
+	for _, job := range data {
+		_, err := pool.Exec(ctx, `
+			INSERT INTO jobs
+				(job_id, title, company, description, source_url, source_platform, location, salary_range, is_analyzed, search_vector, created_at)
+			VALUES
+				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`,
+			job.ID,
+			job.Title,
+			job.Company,
+			job.Title,
+			"job.am",
+			"job.am",
+			job.Location,
+			"100000",
+			false,
+			"sd",
+			job.Deadline,
+		)
+		if err != nil {
+			fmt.Println("Insert error:", err)
+			continue
+		}
+		fmt.Printf("✅ Added job: %s at %s\n", job.Title, job.Company)
 	}
 }
