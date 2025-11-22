@@ -50,7 +50,13 @@ func main() {
 	}
 	var jobAm = jobAmRequest()
 	makeJobAmDBInsertion(ctx, pool, jobAm)
-	//jobAmRequest()
+
+	// Start HTTP server for search API
+	http.HandleFunc("/search", searchHandler(pool))
+	fmt.Println("🔎 Search API listening on http://localhost:8080/search")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		fmt.Println("server error:", err)
+	}
 }
 
 func makeUpdate() {
