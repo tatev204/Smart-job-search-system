@@ -21,7 +21,6 @@ func jobAmRequest() []Job_Am {
 		panic(err)
 	}
 
-	// Parse the .NET-style /Date(1765285777873)/ timestamps
 	re := regexp.MustCompile(`/Date\((\d+)\)/`)
 	for i := range jobs {
 		matches := re.FindStringSubmatch(jobs[i].DeadlineRaw)
@@ -31,7 +30,6 @@ func jobAmRequest() []Job_Am {
 		}
 	}
 
-	// Print results
 	for _, job := range jobs {
 		fmt.Printf("%d | %s | %s | %s | Deadline: %s\n",
 			job.ID, job.Title, job.Company, job.Location, job.Deadline.Format("2006-01-02"))

@@ -12,7 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Job represents a subset of the jobs table returned to clients.
 type Job struct {
 	JobID       int       `json:"job_id"`
 	Title       string    `json:"title"`
@@ -25,7 +24,6 @@ type Job struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-// SearchFilters holds optional filters for the search.
 type SearchFilters struct {
 	Title   string
 	Company string
@@ -38,8 +36,6 @@ func parseSearchFilters(r *http.Request) SearchFilters {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	title := strings.TrimSpace(r.URL.Query().Get("title"))
 
-	// If a generic q is provided, use it as title filter as a default OR match any of the three.
-	// We'll map q to all three in the SQL builder below by distributing it.
 	if q != "" {
 		if title == "" {
 			title = q
@@ -63,9 +59,8 @@ func parseSearchFilters(r *http.Request) SearchFilters {
 	return SearchFilters{Title: title, Limit: limit, Offset: offset}
 }
 
-// searchJobs executes a parameterized query using ILIKE for simple case-insensitive matching.
 func searchJobs(ctx context.Context, pool *pgxpool.Pool, f SearchFilters) ([]Job, error) {
-	// Build WHERE conditions dynamically with safe placeholders
+
 	where := make([]string, 0, 3)
 	args := make([]any, 0, 5)
 
@@ -81,14 +76,11 @@ func searchJobs(ctx context.Context, pool *pgxpool.Pool, f SearchFilters) ([]Job
 	addLike("company", f.Company)
 	addLike("location", f.City)
 
-	// Base query
 	sql := "SELECT job_id, title, company, location, source_url, source_platform, description, salary_range, created_at FROM jobs"
 	if len(where) > 0 {
 		sql += " WHERE " + strings.Join(where, " AND ")
 	}
-	// Order by newest first
 	sql += " ORDER BY created_at DESC"
-	// Limit and offset
 	sql += fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(args)+1, len(args)+2)
 	args = append(args, f.Limit, f.Offset)
 
@@ -112,10 +104,8 @@ func searchJobs(ctx context.Context, pool *pgxpool.Pool, f SearchFilters) ([]Job
 	return res, nil
 }
 
-// searchHandler returns JSON results for job search.
 func searchHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Basic method check
 		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			_, _ = w.Write([]byte("method not allowed"))
@@ -130,7 +120,6 @@ func searchHandler(pool *pgxpool.Pool) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		// Wrap with meta for pagination
 		resp := map[string]any{
 			"items":  results,
 			"limit":  filters.Limit,

@@ -4,17 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/robfig/cron/v3"
 	"io"
 	"net/http"
 	dbPkg "staff_scraper/db"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/robfig/cron/v3"
 )
 
 func main() {
 	ctx := context.Background()
-	// Initialize shared DB pool once
 	dbPkg.Init(ctx)
 	defer dbPkg.Close()
 	pool := dbPkg.Get()
@@ -44,14 +44,12 @@ func main() {
 			return
 		}
 
-		// Use shared connection pool
 		makeDbInsertion(ctx, pool, data)
 
 	}
 	var jobAm = jobAmRequest()
 	makeJobAmDBInsertion(ctx, pool, jobAm)
 
-	// Start HTTP server for search API
 	http.HandleFunc("/search", searchHandler(pool))
 	fmt.Println("🔎 Search API listening on http://localhost:8080/search")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -62,11 +60,9 @@ func main() {
 func makeUpdate() {
 	c := cron.New()
 
-	// Every day at 20:00
 	_, err := c.AddFunc("0 20 * * *", func() {
 		fmt.Println("🕗 Starting job sync:", time.Now())
-		// sync jobs here
-		//syncJobs()
+
 	})
 	if err != nil {
 		panic(err)
@@ -86,6 +82,12 @@ func makeDbInsertion(ctx context.Context, pool *pgxpool.Pool, data StaffResponse
 				(job_id, title, company, description, source_url, source_platform, location, salary_range, is_analyzed, search_vector, created_at)
 			VALUES
 				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			ON CONFLICT (job_id, source_platform) DO UPDATE  -- <-- Այս տողն է ավելացվել
+          SET
+             title = EXCLUDED.title,
+             company = EXCLUDED.company,
+             description = EXCLUDED.description,
+             location = EXCLUDED.location
 		`,
 			job.ID,
 			job.Title.En,
