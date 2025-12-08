@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -18,8 +17,6 @@ type Job struct {
 	Salary_Range string `json:"salary_range"`
 	Description  string `json:"description"`
 }
-
-var db *sql.DB
 
 func getJobsFromDB() ([]Job, error) {
 	rows, err := db.Query("SELECT id, title, company, description, location, salary_range From \"jobs\"")
@@ -42,11 +39,6 @@ func getJobsFromDB() ([]Job, error) {
 }
 
 func getJobsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	jobs, err := getJobsFromDB()
 	if err != nil {
 		log.Printf("Database Error: %v", err)
@@ -62,26 +54,4 @@ func getJobsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-}
-
-func main() {
-	var err error
-	connStr := "user=postgres password=tatev1234 dbname=JobDB sslmode=disable"
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal("Failed to open database connection: %v", err)
-
-	}
-
-	if err = db.Ping(); err != nil {
-		log.Fatal("Failed to open database connection: %v", err)
-	}
-	log.Printf("Successfully connected to the PostgreSQL database.")
-	defer db.Close()
-
-	http.HandleFunc("/jobs", getJobsHandler)
-	port := ":9090"
-	fmt.Printf("GET API Server started on port %s\n", port)
-
-	log.Fatal(http.ListenAndServe(port, nil))
 }
