@@ -39,8 +39,7 @@ func userRegister(w http.ResponseWriter, r *http.Request) {
 
 	passwordHashStr := string(hashedPassword)
 
-	sqlStatement := `
-INSERT INTO users (firstname, lastname,email,password_hash)
+	sqlStatement := ` INSERT INTO users (firstname, lastname,email,password_hash)
 VALUES ($1,$2,$3,$4)
 RETURNING id `
 
@@ -48,7 +47,7 @@ RETURNING id `
 	err = db.QueryRow(sqlStatement, newUser.FirstName, newUser.Lastname, newUser.Email, passwordHashStr).Scan(&newID)
 
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"users_email_key\"") {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			log.Printf("Registration Failed: Email already exists: %s", newUser.Email)
 			http.Error(w, "This email address is already registered.", http.StatusConflict) // 409 Conflict
 			return

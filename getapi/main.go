@@ -31,8 +31,11 @@ func main() {
 	router.HandleFunc("/users", userRegister).Methods("POST")
 	router.HandleFunc("/login", LoginHandler).Methods("POST")
 	router.HandleFunc("/jobs", AuthMiddleware(getJobsHandler)).Methods("GET")
+	router.HandleFunc("/skills", AuthMiddleware(GetAllSkillsHandler)).Methods("GET")
+	router.HandleFunc("/recommendations", GetRecommendationsHandler).Methods("POST")
+	router.HandleFunc("/users/skills", AuthMiddleware(AddUserSkillsHandler)).Methods("POST")
 
-	port := ":9093"
+	port := ":8083"
 	fmt.Printf("API Server running on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))
 }
