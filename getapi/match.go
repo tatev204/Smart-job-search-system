@@ -63,4 +63,5 @@ func GetRecommendationsHandler(w http.ResponseWriter, r *http.Request) { // Հե
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(recommendations)
+
 }
