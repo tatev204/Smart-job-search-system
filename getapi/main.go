@@ -18,6 +18,7 @@ func main() {
 
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
+
 		log.Fatalf("Failed to open database connection :%v", err)
 	}
 	if err = db.Ping(); err != nil {
@@ -34,6 +35,7 @@ func main() {
 	router.HandleFunc("/skills", AuthMiddleware(GetAllSkillsHandler)).Methods("GET")
 	router.HandleFunc("/recommendations", GetRecommendationsHandler).Methods("POST")
 	router.HandleFunc("/users/skills", AuthMiddleware(AddUserSkillsHandler)).Methods("POST")
+	router.HandleFunc("/match/skills", RecommendJobsHandler).Methods("POST")
 
 	port := ":8083"
 	fmt.Printf("API Server running on http://localhost%s\n", port)
