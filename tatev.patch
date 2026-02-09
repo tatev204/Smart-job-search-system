@@ -1,0 +1,1199 @@
+Index: .idea/data_source_mapping.xml
+===================================================================
+diff --git a/.idea/data_source_mapping.xml b/.idea/data_source_mapping.xml
+deleted file mode 100644
+--- a/.idea/data_source_mapping.xml	(revision HEAD)
++++ /dev/null	(revision HEAD)
+@@ -1,6 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="DataSourcePerFileMappings">
+-    <file url="file://$APPLICATION_CONFIG_DIR$/consoles/db/e80efcbd-830e-4c24-81e6-16fd7a805622/console_1.sql" value="e80efcbd-830e-4c24-81e6-16fd7a805622" />
+-  </component>
+-</project>
+\ No newline at end of file
+Index: .idea/sqldialects.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/sqldialects.xml b/.idea/sqldialects.xml
+--- a/.idea/sqldialects.xml	(revision HEAD)
++++ b/.idea/sqldialects.xml	(revision Staged)
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <project version="4">
+   <component name="SqlDialectMappings">
+-    <file url="file://$PROJECT_DIR$/scraperdip/main.go" dialect="PostgreSQL" />
++    <file url="file://$PROJECT_DIR$/scraperdip/scr.go" dialect="PostgreSQL" />
+   </component>
+ </project>
+\ No newline at end of file
+Index: getapi/main.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/getapi/main.go b/getapi/get.go
+rename from getapi/main.go
+rename to getapi/get.go
+--- a/getapi/main.go	(revision HEAD)
++++ b/getapi/get.go	(revision Staged)
+@@ -1,4 +1,4 @@
+-package main
++package getapi
+ 
+ import (
+ 	"database/sql"
+@@ -12,32 +12,28 @@
+ 
+ var db *sql.DB
+ 
+-func main() {
++func StartAPI() {
+ 	var err error
+ 	connStr := "user=postgres password=tatev1234 dbname=JobDB sslmode=disable"
+ 
+ 	db, err = sql.Open("postgres", connStr)
+ 	if err != nil {
+-
+ 		log.Fatalf("Failed to open database connection :%v", err)
+ 	}
+ 	if err = db.Ping(); err != nil {
+ 		log.Fatalf("failed to ping database : %v", err)
+ 	}
+-	log.Printf("Successfully connected to the PostgreSQL")
+-	defer db.Close()
+ 
+ 	router := mux.NewRouter()
+ 
+ 	router.HandleFunc("/users", userRegister).Methods("POST")
+ 	router.HandleFunc("/login", LoginHandler).Methods("POST")
+-	router.HandleFunc("/jobs", AuthMiddleware(getJobsHandler)).Methods("GET")
++	router.HandleFunc("/jobs", AuthMiddleware(GetJobsHandler)).Methods("GET")
+ 	router.HandleFunc("/skills", AuthMiddleware(GetAllSkillsHandler)).Methods("GET")
+-	router.HandleFunc("/recommendations", GetRecommendationsHandler).Methods("POST")
++	router.HandleFunc("/recommendations", GetRecommendedJobsHandler).Methods("GET")
+ 	router.HandleFunc("/users/skills", AuthMiddleware(AddUserSkillsHandler)).Methods("POST")
+-	router.HandleFunc("/match/skills", RecommendJobsHandler).Methods("POST")
+ 
+-	port := ":8083"
++	port := ":8088"
+ 	fmt.Printf("API Server running on http://localhost%s\n", port)
+ 	log.Fatal(http.ListenAndServe(port, router))
+ }
+Index: getapi/getapi.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/getapi/getapi.go b/getapi/getapi.go
+--- a/getapi/getapi.go	(revision HEAD)
++++ b/getapi/getapi.go	(revision Staged)
+@@ -1,9 +1,8 @@
+-package main
++package getapi
+ 
+ import (
+ 	"encoding/json"
+ 	"fmt"
+-	"log"
+ 	"net/http"
+ 
+ 	_ "github.com/lib/pq"
+@@ -18,6 +17,14 @@
+ 	Description  string `json:"description"`
+ }
+ 
++type RecommendedJob struct {
++	ID            int     `json:"id"`
++	Title         string  `json:"title"`
++	Company       string  `json:"company"`
++	Percentage    float64 `json:"match_percentage"`
++	MatchedSkills string  `json:"matched_skills"`
++}
++
+ func getJobsFromDB() ([]Job, error) {
+ 	rows, err := db.Query("SELECT id, title, company, description, location, salary_range From \"jobs\"")
+ 	if err != nil {
+@@ -32,26 +39,54 @@
+ 		}
+ 		jobs = append(jobs, job)
+ 	}
+-	if err = rows.Err(); err != nil {
+-		return nil, fmt.Errorf("row error :%w", err)
+-	}
+ 	return jobs, nil
+ }
+ 
+-func getJobsHandler(w http.ResponseWriter, r *http.Request) {
++func GetJobsHandler(w http.ResponseWriter, r *http.Request) {
+ 	jobs, err := getJobsFromDB()
+ 	if err != nil {
+-		log.Printf("Database Error: %v", err)
+ 		http.Error(w, "Failed to retrieve job listings.", http.StatusInternalServerError)
+ 		return
+ 	}
+-
+ 	w.Header().Set("Content-Type", "application/json")
++	json.NewEncoder(w).Encode(jobs)
++}
++
++func GetRecommendedJobsHandler(w http.ResponseWriter, r *http.Request) {
++	userID := r.URL.Query().Get("user_id")
++	if userID == "" {
++		http.Error(w, "user_id is required", http.StatusBadRequest)
++		return
++	}
+ 
+-	if err := json.NewEncoder(w).Encode(jobs); err != nil {
+-		http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
+-		log.Printf("JSON encoding error : %v", err)
++	query := `
++    SELECT j.id, j.title, j.company,
++           ROUND(CAST(COUNT(js.skill_id) AS NUMERIC) * 100 / 
++           NULLIF((SELECT COUNT(*) FROM job_skills WHERE job_id = j.id), 0), 2) as match_percentage,
++           COALESCE(STRING_AGG(s.name, ', '), '') as matched_skills
++    FROM jobs j
++    JOIN job_skills js ON j.id = js.job_id
++    JOIN skills s ON js.skill_id = s.id
++    WHERE js.skill_id IN (SELECT skill_id FROM user_skills WHERE user_id = $1)
++    GROUP BY j.id, j.title, j.company
++    ORDER BY match_percentage DESC`
++
++	rows, err := db.Query(query, userID)
++	if err != nil {
++		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
++	defer rows.Close()
+ 
++	var results []RecommendedJob
++	for rows.Next() {
++		var rj RecommendedJob
++		if err := rows.Scan(&rj.ID, &rj.Title, &rj.Company, &rj.Percentage, &rj.MatchedSkills); err != nil {
++			continue
++		}
++		results = append(results, rj)
++	}
++
++	w.Header().Set("Content-Type", "application/json")
++	json.NewEncoder(w).Encode(results)
+ }
+Index: getapi/go.mod
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/getapi/go.mod b/getapi/go.mod
+--- a/getapi/go.mod	(revision HEAD)
++++ b/getapi/go.mod	(revision Staged)
+@@ -1,10 +1,11 @@
+-module skills.go
++module getapi
+ 
+ go 1.24.4
+ 
+ require (
+ 	github.com/golang-jwt/jwt/v5 v5.3.0
+-	github.com/gorilla/mux v1.8.1
+ 	github.com/lib/pq v1.10.9
+ 	golang.org/x/crypto v0.46.0
+ )
++
++require github.com/gorilla/mux v1.8.1
+Index: getapi/jwt.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/getapi/jwt.go b/getapi/jwt.go
+--- a/getapi/jwt.go	(revision HEAD)
++++ b/getapi/jwt.go	(revision Staged)
+@@ -1,4 +1,4 @@
+-package main
++package getapi
+ 
+ import (
+ 	"context"
+Index: getapi/match.go
+===================================================================
+diff --git a/getapi/match.go b/getapi/match.go
+deleted file mode 100644
+--- a/getapi/match.go	(revision HEAD)
++++ /dev/null	(revision HEAD)
+@@ -1,67 +0,0 @@
+-package main
+-
+-import (
+-	"database/sql"
+-	"encoding/json"
+-	"net/http"
+-)
+-
+-type SkillsMatch struct {
+-	JobID           int     `json:"job_id"`
+-	Title           string  `json:"title"`
+-	MatchedCount    int     `json:"matched_count"`
+-	MatchPercentage float64 `json:"match_percentage"`
+-}
+-type RequestBody struct {
+-	UserID int `json:"user_id"`
+-}
+-
+-var Db *sql.DB
+-
+-func GetRecommendedJobs(db *sql.DB, userID int) ([]SkillsMatch, error) {
+-	query := `
+-       SELECT 
+-           j.id,  
+-           j.title, 
+-           COUNT(js.skill_id) as matched_count,
+-           (COUNT(js.skill_id) * 100.0 / NULLIF((SELECT COUNT(*) FROM job_skills WHERE job_id = j.id), 0)) as percentage
+-       FROM jobs j 
+-       JOIN job_skills js ON j.id = js.job_id
+-       WHERE js.skill_id IN (SELECT skill_id FROM user_skills WHERE user_id = $1)
+-       GROUP BY j.id, j.title
+-       ORDER BY percentage DESC`
+-
+-	rows, err := db.Query(query, userID)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer rows.Close()
+-
+-	var matches []SkillsMatch
+-	for rows.Next() {
+-		var m SkillsMatch
+-		if err := rows.Scan(&m.JobID, &m.Title, &m.MatchedCount, &m.MatchPercentage); err != nil {
+-			return nil, err
+-		}
+-		matches = append(matches, m)
+-	}
+-	return matches, nil
+-
+-}
+-
+-func GetRecommendationsHandler(w http.ResponseWriter, r *http.Request) { // Հեռացրինք db-ն այստեղից
+-	var req RequestBody
+-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+-		http.Error(w, "Invalid body", http.StatusBadRequest)
+-		return
+-	}
+-	recommendations, err := GetRecommendedJobs(Db, req.UserID)
+-	if err != nil {
+-		http.Error(w, "Error fetching recommendations", http.StatusInternalServerError)
+-		return
+-	}
+-
+-	w.Header().Set("Content-Type", "application/json")
+-	json.NewEncoder(w).Encode(recommendations)
+-
+-}
+Index: getapi/postapi.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/getapi/postapi.go b/getapi/postapi.go
+--- a/getapi/postapi.go	(revision HEAD)
++++ b/getapi/postapi.go	(revision Staged)
+@@ -1,4 +1,4 @@
+-package main
++package getapi
+ 
+ import (
+ 	"database/sql"
+Index: getapi/recommendation.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/getapi/recommendation.go b/getapi/recommendation.go
+new file mode 100644
+--- /dev/null	(revision Staged)
++++ b/getapi/recommendation.go	(revision Staged)
+@@ -0,0 +1,78 @@
++package getapi
++
++import (
++	"database/sql"
++	"encoding/json"
++	"fmt"
++	"net/http"
++	"strconv"
++)
++
++type SkillsMatch struct {
++	JobID           int     `json:"job_id"`
++	Title           string  `json:"title"`
++	MatchedCount    int     `json:"matched_count"`
++	MatchPercentage float64 `json:"match_percentage"`
++}
++
++func GetMatchingJobs(db *sql.DB, userID int) ([]SkillsMatch, error) {
++	query := `
++      SELECT 
++          j.id, 
++          j.title, 
++          COUNT(js.skill_id) as matched_count,
++          COALESCE((COUNT(js.skill_id) * 100.0 / NULLIF((SELECT COUNT(*) FROM job_skills WHERE job_id = j.id), 0)), 0) as percentage,
++          STRING_AGG(s.name, ', ') as matched_skills 
++      FROM jobs j
++      JOIN job_skills js ON j.id = js.job_id
++      JOIN skills s ON js.skill_id = s.id 
++      WHERE js.skill_id IN (SELECT skill_id FROM user_skills WHERE user_id = $1)
++      GROUP BY j.id, j.title
++      ORDER BY percentage DESC`
++
++	rows, err := db.Query(query, userID)
++	if err != nil {
++		return nil, err
++	}
++	defer rows.Close()
++
++	var matches []SkillsMatch
++	for rows.Next() {
++		var m SkillsMatch
++		if err := rows.Scan(&m.JobID, &m.Title, &m.MatchedCount, &m.MatchPercentage); err != nil {
++			return nil, err
++		}
++		matches = append(matches, m)
++	}
++
++	if matches == nil {
++		matches = []SkillsMatch{}
++	}
++
++	return matches, nil
++}
++
++func RecommendJobsHandler(db *sql.DB) http.HandlerFunc {
++	return func(w http.ResponseWriter, r *http.Request) {
++		userIDStr := r.URL.Query().Get("user_id")
++		if userIDStr == "" {
++			http.Error(w, "user_id is required", http.StatusBadRequest)
++			return
++		}
++
++		userID, err := strconv.Atoi(userIDStr)
++		if err != nil {
++			http.Error(w, "Invalid user_id", http.StatusBadRequest)
++			return
++		}
++
++		recommendations, err := GetMatchingJobs(db, userID)
++		if err != nil {
++			http.Error(w, fmt.Sprintf("Error: %v", err), http.StatusInternalServerError)
++			return
++		}
++
++		w.Header().Set("Content-Type", "application/json")
++		json.NewEncoder(w).Encode(recommendations)
++	}
++}
+Index: getapi/skills.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/getapi/skills.go b/getapi/skills.go
+--- a/getapi/skills.go	(revision HEAD)
++++ b/getapi/skills.go	(revision Staged)
+@@ -1,4 +1,4 @@
+-package main
++package getapi
+ 
+ import (
+ 	"encoding/json"
+Index: getapi/skillsmatching.go
+===================================================================
+diff --git a/getapi/skillsmatching.go b/getapi/skillsmatching.go
+deleted file mode 100644
+--- a/getapi/skillsmatching.go	(revision HEAD)
++++ /dev/null	(revision HEAD)
+@@ -1,65 +0,0 @@
+-package main
+-
+-import (
+-	"database/sql"
+-	"encoding/json"
+-	"net/http"
+-)
+-
+-type JobSkillsMatch struct {
+-	JobID           int     `json:"job_id"`
+-	Title           string  `json:"title"`
+-	MatchedCount    int     `json:"matched_count"`
+-	MatchPercentage float64 `json:"match_percentage"`
+-}
+-
+-type RecommendationRequestBody struct {
+-	UserID int `json:"user_id"`
+-}
+-
+-func GetMatchingJobs(db *sql.DB, userID int) ([]JobSkillsMatch, error) {
+-	query := `
+-      SELECT
+-          j.id,
+-          j.title,
+-          COUNT(js.skill_id) as matched_count,
+-          COALESCE((COUNT(js.skill_id) * 100.0 / NULLIF((SELECT COUNT(*) FROM job_skills WHERE job_id = j.id), 0)), 0) as percentage
+-      FROM jobs j
+-      JOIN job_skills js ON j.id = js.job_id
+-      WHERE js.skill_id IN (SELECT skill_id FROM user_skills WHERE user_id = $1)
+-      GROUP BY j.id, j.title
+-      ORDER BY percentage DESC`
+-
+-	rows, err := db.Query(query, userID)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer rows.Close()
+-
+-	var matches []JobSkillsMatch
+-	for rows.Next() {
+-		var m JobSkillsMatch
+-		if err := rows.Scan(&m.JobID, &m.Title, &m.MatchedCount, &m.MatchPercentage); err != nil {
+-			return nil, err
+-		}
+-		matches = append(matches, m)
+-	}
+-	return matches, nil
+-}
+-
+-func RecommendJobsHandler(w http.ResponseWriter, r *http.Request) {
+-	var req RecommendationRequestBody
+-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+-		http.Error(w, "Invalid body", http.StatusBadRequest)
+-		return
+-	}
+-
+-	recommendations, err := GetMatchingJobs(db, req.UserID)
+-	if err != nil {
+-		http.Error(w, "Error fetching recommendations", http.StatusInternalServerError)
+-		return
+-	}
+-
+-	w.Header().Set("Content-Type", "application/json")
+-	json.NewEncoder(w).Encode(recommendations)
+-}
+Index: getapi/userskills.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/getapi/userskills.go b/getapi/userskills.go
+--- a/getapi/userskills.go	(revision HEAD)
++++ b/getapi/userskills.go	(revision Staged)
+@@ -1,4 +1,4 @@
+-package main
++package getapi
+ 
+ import (
+ 	"encoding/json"
+Index: go.mod
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/go.mod b/go.mod
+new file mode 100644
+--- /dev/null	(revision Staged)
++++ b/go.mod	(revision Staged)
+@@ -0,0 +1,3 @@
++module staff_scraper
++
++go 1.24.4
+Index: go.work
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/go.work b/go.work
+new file mode 100644
+--- /dev/null	(revision Staged)
++++ b/go.work	(revision Staged)
+@@ -0,0 +1,7 @@
++go 1.24.4
++
++use (
++	.
++	./getapi
++	./scraperdip
++)
+Index: go.work.sum
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/go.work.sum b/go.work.sum
+new file mode 100644
+--- /dev/null	(revision Staged)
++++ b/go.work.sum	(revision Staged)
+@@ -0,0 +1,15 @@
++github.com/kr/pretty v0.3.0 h1:WgNl7dwNpEZ6jJ9k1snq4pZsg7DOEN8hP9Xw0Tsjwk0=
++github.com/kr/pretty v0.3.0/go.mod h1:640gp4NfQd8pI5XOwp5fnNeVWj67G7CFk/SaSQn7NBk=
++github.com/stretchr/objx v0.1.0 h1:4G4v2dO3VZwixGIRoQ5Lfboy6nUhCyYzaqnIAPPhYs4=
++golang.org/x/mod v0.30.0 h1:fDEXFVZ/fmCKProc/yAXXUijritrDzahmwwefnjoPFk=
++golang.org/x/mod v0.30.0/go.mod h1:lAsf5O2EvJeSFMiBxXDki7sCgAxEUcZHXoXMKT4GJKc=
++golang.org/x/net v0.47.0 h1:Mx+4dIFzqraBXUugkia1OOvlD6LemFo1ALMHjrXDOhY=
++golang.org/x/net v0.47.0/go.mod h1:/jNxtkgq5yWUGYkaZGqo27cfGZ1c5Nen03aYrrKpVRU=
++golang.org/x/sys v0.39.0 h1:CvCKL8MeisomCi6qNZ+wbb0DN9E5AATixKsvNtMoMFk=
++golang.org/x/sys v0.39.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
++golang.org/x/term v0.38.0 h1:PQ5pkm/rLO6HnxFR7N2lJHOZX6Kez5Y1gDSJla6jo7Q=
++golang.org/x/term v0.38.0/go.mod h1:bSEAKrOT1W+VSu9TSCMtoGEOUcKxOKgl3LE5QEF/xVg=
++golang.org/x/tools v0.39.0 h1:ik4ho21kwuQln40uelmciQPp9SipgNDdrafrYA4TmQQ=
++golang.org/x/tools v0.39.0/go.mod h1:JnefbkDPyD8UU2kI5fuf8ZX4/yUeh9W877ZeBONxUqQ=
++gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
++gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
+Index: main.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/main.go b/main.go
+new file mode 100644
+--- /dev/null	(revision Staged)
++++ b/main.go	(revision Staged)
+@@ -0,0 +1,28 @@
++package main
++
++import (
++	"getapi"
++	"log"
++	"scraperdip"
++	"sync"
++)
++
++func main() {
++	var wg sync.WaitGroup
++	wg.Add(2)
++
++	go func() {
++		defer wg.Done()
++		log.Println("Starting API on :8088...")
++		getapi.StartAPI()
++	}()
++
++	go func() {
++		defer wg.Done()
++		log.Println("Starting Scraper on :8080...")
++		scraperdip.StartScraper()
++	}()
++
++	log.Println(" All services are running.")
++	wg.Wait()
++}
+Index: scraperdip/db/db.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/scraperdip/db/db.go b/scraperdip/db/db.go
+--- a/scraperdip/db/db.go	(revision HEAD)
++++ b/scraperdip/db/db.go	(revision Staged)
+@@ -1,4 +1,4 @@
+-package main
++package db
+ 
+ import (
+ 	"context"
+Index: scraperdip/go.mod
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/scraperdip/go.mod b/scraperdip/go.mod
+--- a/scraperdip/go.mod	(revision HEAD)
++++ b/scraperdip/go.mod	(revision Staged)
+@@ -1,19 +1,16 @@
+-module staff_scraper
++module scraperdip
+ 
+ go 1.24.4
+ 
+ require (
+-	github.com/jackc/pgx/v5 v5.7.6
+-	github.com/robfig/cron/v3 v3.0.0
++	github.com/jackc/pgx/v5 v5.8.0
++	github.com/robfig/cron/v3 v3.0.1
+ )
+ 
+ require (
+-	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
+ 	github.com/jackc/pgpassfile v1.0.0 // indirect
+ 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+ 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+-	github.com/stretchr/testify v1.10.0 // indirect
+-	golang.org/x/crypto v0.45.0 // indirect
+-	golang.org/x/sync v0.18.0 // indirect
+-	golang.org/x/text v0.31.0 // indirect
++	golang.org/x/sync v0.19.0 // indirect
++	golang.org/x/text v0.32.0 // indirect
+ )
+Index: scraperdip/go.sum
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/scraperdip/go.sum b/scraperdip/go.sum
+--- a/scraperdip/go.sum	(revision HEAD)
++++ b/scraperdip/go.sum	(revision Staged)
+@@ -1,31 +1,27 @@
+ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
+ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+-github.com/golang-jwt/jwt/v5 v5.3.0 h1:pv4AsKCKKZuqlgs5sUmn4x8UlGa0kEVt/puTpKx9vvo=
+-github.com/golang-jwt/jwt/v5 v5.3.0/go.mod h1:fxCRLWMO43lRc8nhHWY6LGqRcf+1gQWArsqaEUEa5bE=
+ github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
+ github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
+ github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=
+ github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761/go.mod h1:5TJZWKEWniPve33vlWYSoGYefn3gLQRzjfDlhSJ9ZKM=
+-github.com/jackc/pgx/v5 v5.7.6 h1:rWQc5FwZSPX58r1OQmkuaNicxdmExaEz5A2DO2hUuTk=
+-github.com/jackc/pgx/v5 v5.7.6/go.mod h1:aruU7o91Tc2q2cFp5h4uP3f6ztExVpyVv88Xl/8Vl8M=
++github.com/jackc/pgx/v5 v5.8.0 h1:TYPDoleBBme0xGSAX3/+NujXXtpZn9HBONkQC7IEZSo=
++github.com/jackc/pgx/v5 v5.8.0/go.mod h1:QVeDInX2m9VyzvNeiCJVjCkNFqzsNb43204HshNSZKw=
+ github.com/jackc/puddle/v2 v2.2.2 h1:PR8nw+E/1w0GLuRFSmiioY6UooMp6KJv0/61nB7icHo=
+ github.com/jackc/puddle/v2 v2.2.2/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
+ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
+ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+-github.com/robfig/cron/v3 v3.0.0 h1:kQ6Cb7aHOHTSzNVNEhmp8EcWKLb4CbiMW9h9VyIhO4E=
+-github.com/robfig/cron/v3 v3.0.0/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
++github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
++github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
+ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
+ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
+-github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=
+-github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
+-golang.org/x/crypto v0.45.0 h1:jMBrvKuj23MTlT0bQEOBcAE0mjg8mK9RXFhRH6nyF3Q=
+-golang.org/x/crypto v0.45.0/go.mod h1:XTGrrkGJve7CYK7J8PEww4aY7gM3qMCElcJQ8n8JdX4=
+-golang.org/x/sync v0.18.0 h1:kr88TuHDroi+UVf+0hZnirlk8o8T+4MrK6mr60WkH/I=
+-golang.org/x/sync v0.18.0/go.mod h1:9KTHXmSnoGruLpwFjVSX0lNNA75CykiMECbovNTZqGI=
+-golang.org/x/text v0.31.0 h1:aC8ghyu4JhP8VojJ2lEHBnochRno1sgL6nEi9WGFGMM=
+-golang.org/x/text v0.31.0/go.mod h1:tKRAlv61yKIjGGHX/4tP1LTbc13YSec1pxVEWXzfoeM=
++github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
++github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
++golang.org/x/sync v0.19.0 h1:vV+1eWNmZ5geRlYjzm2adRgW2/mcpevXNg50YZtPCE4=
++golang.org/x/sync v0.19.0/go.mod h1:9KTHXmSnoGruLpwFjVSX0lNNA75CykiMECbovNTZqGI=
++golang.org/x/text v0.32.0 h1:ZD01bjUt1FQ9WJ0ClOL5vxgxOI/sVCNgX1YtKwcY0mU=
++golang.org/x/text v0.32.0/go.mod h1:o/rUWzghvpD5TXrTIBuJU77MTaN0ljMWE47kxGJQ7jY=
+ gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+ gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
+Index: scraperdip/job_am_request.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/scraperdip/job_am_request.go b/scraperdip/job_am_request.go
+--- a/scraperdip/job_am_request.go	(revision HEAD)
++++ b/scraperdip/job_am_request.go	(revision Staged)
+@@ -1,4 +1,4 @@
+-package main
++package scraperdip
+ 
+ import (
+ 	"encoding/json"
+Index: scraperdip/job_am_resposne.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/scraperdip/job_am_resposne.go b/scraperdip/job_am_response.go
+rename from scraperdip/job_am_resposne.go
+rename to scraperdip/job_am_response.go
+--- a/scraperdip/job_am_resposne.go	(revision HEAD)
++++ b/scraperdip/job_am_response.go	(revision Staged)
+@@ -1,4 +1,4 @@
+-package main
++package scraperdip
+ 
+ import (
+ 	"time"
+Index: scraperdip/jwt.go
+===================================================================
+diff --git a/scraperdip/jwt.go b/scraperdip/jwt.go
+deleted file mode 100644
+--- a/scraperdip/jwt.go	(revision HEAD)
++++ /dev/null	(revision HEAD)
+@@ -1,128 +0,0 @@
+-package main
+-
+-//
+-//import (
+-//	"context"
+-//	"encoding/json"
+-//	"fmt"
+-//	"log"
+-//	"net/http"
+-//	"strings"
+-//	"time"
+-//
+-//	"github.com/golang-jwt/jwt/v5"
+-//)
+-//
+-//var jwtSecretKey = []byte("6A675EC5DA653B75C28C31F4EFB93")
+-//
+-//type contextKey string
+-//
+-//const claimsContextKey contextKey = "userClaims"
+-//
+-//type UserToken struct {
+-//	UserID int    `json:"user_id"`
+-//	Role   string `json:"role"`
+-//	jwt.RegisteredClaims
+-//}
+-//
+-//func GenerateToken(userID int, role string) (string, error) {
+-//	endofTime := time.Now().Add(time.Hour * 24)
+-//	usertoken := &UserToken{
+-//		UserID: userID,
+-//		Role:   role,
+-//		RegisteredClaims: jwt.RegisteredClaims{
+-//			ExpiresAt: jwt.NewNumericDate(endofTime),
+-//			IssuedAt:  jwt.NewNumericDate(time.Now()),
+-//			Issuer:    "JobSystem",
+-//		},
+-//	}
+-//
+-//	token := jwt.NewWithClaims(jwt.SigningMethodHS256, usertoken)
+-//	tokenString, err := token.SignedString(jwtSecretKey)
+-//
+-//	if err != nil {
+-//		return "", fmt.Errorf("could not sign token: %w", err)
+-//	}
+-//	return tokenString, nil
+-//}
+-//
+-//func VerifyToken(tokenString string) (*UserToken, error) {
+-//	usertoken := &UserToken{}
+-//	_, err := jwt.ParseWithClaims(tokenString, usertoken, func(token *jwt.Token) (interface{}, error) {
+-//		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+-//			return nil, fmt.Errorf("unexpected signing method: %v", token.Method)
+-//		}
+-//		return jwtSecretKey, nil
+-//	})
+-//
+-//	if err != nil {
+-//		return nil, fmt.Errorf("invalid token: %w", err)
+-//	}
+-//	return usertoken, nil
+-//}
+-//
+-//func LoginHandler(w http.ResponseWriter, r *http.Request) {
+-//	userID := 555
+-//	role := "user"
+-//
+-//	tokenString, err := GenerateToken(userID, role)
+-//	if err != nil {
+-//		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+-//		return
+-//	}
+-//
+-//	w.Header().Set("Content-Type", "application/json")
+-//	json.NewEncoder(w).Encode(map[string]string{
+-//		"token":   tokenString,
+-//		"message": "Token generated successfully",
+-//	})
+-//}
+-//
+-//func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+-//	return func(w http.ResponseWriter, r *http.Request) {
+-//		authHeader := r.Header.Get("Authorization")
+-//		if authHeader == "" {
+-//			http.Error(w, "Authorization header is required", http.StatusUnauthorized)
+-//			return
+-//		}
+-//
+-//		tokenParts := strings.Split(authHeader, " ")
+-//		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+-//			http.Error(w, "Invalid token format. Must be 'Bearer [token]'", http.StatusUnauthorized)
+-//			return
+-//		}
+-//		tokenString := tokenParts[1]
+-//
+-//		claims, err := VerifyToken(tokenString)
+-//		if err != nil {
+-//			http.Error(w, "Token verification failed:"+err.Error(), http.StatusUnauthorized)
+-//			return
+-//		}
+-//
+-//		ctx := context.WithValue(r.Context(), claimsContextKey, claims)
+-//		r = r.WithContext(ctx)
+-//
+-//		log.Printf("User ID %d successfully authenticated.", claims.UserID)
+-//		next.ServeHTTP(w, r)
+-//	}
+-//}
+-//
+-//func ProtectedHandler(w http.ResponseWriter, r *http.Request) {
+-//	w.Header().Set("Content-Type", "application/json")
+-//
+-//	claims := r.Context().Value(claimsContextKey).(*UserToken)
+-//
+-//	json.NewEncoder(w).Encode(map[string]interface{}{
+-//		"status": "success",
+-//		"data":   fmt.Sprintf("Welcome to the secret area! Your User ID is %d and Role is %s.", claims.UserID, claims.Role),
+-//	})
+-//}
+-//
+-//func main() {
+-//	http.HandleFunc("/login", LoginHandler)
+-//	http.HandleFunc("/protected", AuthMiddleware(ProtectedHandler))
+-//
+-//	port := ":8080"
+-//	fmt.Printf("Starting server on http://localhost%s\n", port)
+-//	log.Fatal(http.ListenAndServe(port, nil))
+-//}
+Index: scraperdip/main.go
+===================================================================
+diff --git a/scraperdip/main.go b/scraperdip/main.go
+deleted file mode 100644
+--- a/scraperdip/main.go	(revision HEAD)
++++ /dev/null	(revision HEAD)
+@@ -1,138 +0,0 @@
+-package main
+-
+-//
+-//import (
+-//	"context"
+-//	"encoding/json"
+-//	"fmt"
+-//	"io"
+-//	"net/http"
+-//	dbPkg "staff_scraper/db"
+-//	"time"
+-//
+-//	"github.com/jackc/pgx/v5/pgxpool"
+-//	"github.com/robfig/cron/v3"
+-//)
+-//
+-//func main() {
+-//	ctx := context.Background()
+-//	dbPkg.Init(ctx)
+-//	defer dbPkg.Close()
+-//	pool := dbPkg.Get()
+-//
+-//	page := 1
+-//	for page >= 1 && page <= 2 {
+-//		page++
+-//		lang := "am"
+-//		url := fmt.Sprintf("https://staff.am/_next/data/wjWoLYaWeeZJxHHNnq6tj/%s/jobs.json?page=%d", lang, page)
+-//
+-//		resp, err := http.Get(url)
+-//		if err != nil {
+-//			fmt.Println("HTTP request error:", err)
+-//			return
+-//		}
+-//		defer resp.Body.Close()
+-//
+-//		body, err := io.ReadAll(resp.Body)
+-//		if err != nil {
+-//			fmt.Println("Error reading response:", err)
+-//			return
+-//		}
+-//
+-//		var data StaffResponse
+-//		if err := json.Unmarshal(body, &data); err != nil {
+-//			fmt.Println("Error parsing JSON:", err)
+-//			return
+-//		}
+-//
+-//		makeDbInsertion(ctx, pool, data)
+-//
+-//	}
+-//	var jobAm = jobAmRequest()
+-//	makeJobAmDBInsertion(ctx, pool, jobAm)
+-//
+-//	http.HandleFunc("/search", searchHandler(pool))
+-//	fmt.Println(" Search API listening on http://localhost:8080/search")
+-//	if err := http.ListenAndServe(":8080", nil); err != nil {
+-//		fmt.Println("server error:", err)
+-//	}
+-//}
+-//
+-//func makeUpdate() {
+-//	c := cron.New()
+-//
+-//	_, err := c.AddFunc("0 20 * * *", func() {
+-//		fmt.Println(" Starting job sync:", time.Now())
+-//
+-//	})
+-//	if err != nil {
+-//		panic(err)
+-//	}
+-//
+-//	fmt.Println(" Scheduler started, waiting for 20:00...")
+-//	c.Start()
+-//
+-//	select {}
+-//}
+-//
+-//func makeDbInsertion(ctx context.Context, pool *pgxpool.Pool, data StaffResponse) {
+-//	for _, job := range data.PageProps.Jobs {
+-//		_, err := pool.Exec(ctx, `
+-//			INSERT INTO jobs
+-//				(job_id, title, company, description, source_url, source_platform, location, salary_range, is_analyzed, search_vector, created_at)
+-//			VALUES
+-//				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+-//			ON CONFLICT (job_id, source_platform) DO UPDATE
+-//       SET
+-//          title = EXCLUDED.title,
+-//          company = EXCLUDED.company,
+-//          description = EXCLUDED.description,
+-//          location = EXCLUDED.location
+-//		`,
+-//			job.ID,
+-//			job.Title.En,
+-//			job.CompaniesStruct.Title.En,
+-//			job.Title.En,
+-//			"staff.am",
+-//			"staff.am",
+-//			job.JobCity.Title.En,
+-//			"100000",
+-//			false,
+-//			"sd",
+-//			job.Deadline,
+-//		)
+-//		if err != nil {
+-//			fmt.Println("Insert error:", err)
+-//			continue
+-//		}
+-//		fmt.Printf(" Added job: %s at %s\n", job.Title.En, job.CompaniesStruct.Title.En)
+-//	}
+-//}
+-//
+-//func makeJobAmDBInsertion(ctx context.Context, pool *pgxpool.Pool, data []Job_Am) {
+-//	for _, job := range data {
+-//		_, err := pool.Exec(ctx, `
+-//			INSERT INTO jobs
+-//				(job_id, title, company, description, source_url, source_platform, location, salary_range, is_analyzed, search_vector, created_at)
+-//			VALUES
+-//				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+-//		`,
+-//			job.ID,
+-//			job.Title,
+-//			job.Company,
+-//			job.Title,
+-//			"job.am",
+-//			"job.am",
+-//			job.Location,
+-//			"100000",
+-//			false,
+-//			"sd",
+-//			job.Deadline,
+-//		)
+-//		if err != nil {
+-//			fmt.Println("Insert error:", err)
+-//			continue
+-//		}
+-//		fmt.Printf(" Added job: %s at %s\n", job.Title, job.Company)
+-//	}
+-//}
+Index: scraperdip/scr.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/scraperdip/scr.go b/scraperdip/scr.go
+new file mode 100644
+--- /dev/null	(revision Staged)
++++ b/scraperdip/scr.go	(revision Staged)
+@@ -0,0 +1,165 @@
++package scraperdip
++
++import (
++	"context"
++	"encoding/json"
++	"fmt"
++	"io"
++	"net/http"
++	dbPkg "scraperdip/db"
++	"strings"
++	"time"
++
++	"github.com/jackc/pgx/v5/pgxpool"
++	"github.com/robfig/cron/v3"
++)
++
++func StartScraper() {
++	ctx := context.Background()
++	dbPkg.Init(ctx)
++	defer dbPkg.Close()
++	pool := dbPkg.Get()
++
++	cleanExpiredJobs(ctx, pool)
++	runScrape(ctx, pool)
++
++	makeUpdate()
++
++	http.HandleFunc("/search", searchHandler(pool))
++	fmt.Println("Search API listening on http://localhost:8070/search")
++	if err := http.ListenAndServe(":8070", nil); err != nil {
++		fmt.Println("server error:", err)
++	}
++}
++
++func cleanExpiredJobs(ctx context.Context, pool *pgxpool.Pool) {
++	query := `DELETE FROM jobs WHERE created_at < CURRENT_DATE`
++	_, err := pool.Exec(ctx, query)
++	if err != nil {
++		fmt.Println("Error cleaning expired jobs:", err)
++		return
++	}
++}
++
++func runScrape(ctx context.Context, pool *pgxpool.Pool) {
++	page := 1
++	for page >= 1 && page <= 2 {
++		page++
++		lang := "am"
++		url := fmt.Sprintf("https://staff.am/_next/data/AGOOfA7iKkxo09m1N_0Yq/%s/jobs.json?page=%d", lang, page)
++
++		resp, err := http.Get(url)
++		if err != nil {
++			return
++		}
++		defer resp.Body.Close()
++
++		body, err := io.ReadAll(resp.Body)
++		if err != nil {
++			return
++		}
++
++		var data StaffResponse
++		if err := json.Unmarshal(body, &data); err != nil {
++			return
++		}
++
++		makeDbInsertion(ctx, pool, data)
++	}
++	var jobAm = jobAmRequest()
++	makeJobAmDBInsertion(ctx, pool, jobAm)
++}
++
++func makeUpdate() {
++	c := cron.New()
++	_, err := c.AddFunc("0 20 * * *", func() {
++		ctx := context.Background()
++		pool := dbPkg.Get()
++		cleanExpiredJobs(ctx, pool)
++		runScrape(ctx, pool)
++	})
++	if err != nil {
++		panic(err)
++	}
++	c.Start()
++}
++
++func analyzeAndLinkSkills(ctx context.Context, pool *pgxpool.Pool, jobID int, textToAnalyze string) {
++	rows, err := pool.Query(ctx, "SELECT id, name FROM skills")
++	if err != nil {
++		return
++	}
++	defer rows.Close()
++
++	for rows.Next() {
++		var skillID int
++		var skillName string
++		if err := rows.Scan(&skillID, &skillName); err != nil {
++			continue
++		}
++
++		lowerText := strings.ToLower(textToAnalyze)
++		lowerSkill := strings.ToLower(skillName)
++
++		if strings.Contains(lowerText, lowerSkill) {
++			_, _ = pool.Exec(ctx, `
++                INSERT INTO job_skills (job_id, skill_id) 
++                VALUES ($1, $2) 
++                ON CONFLICT DO NOTHING`,
++				jobID, skillID)
++		}
++	}
++}
++
++func makeDbInsertion(ctx context.Context, pool *pgxpool.Pool, data StaffResponse) {
++	for _, job := range data.PageProps.Jobs {
++		var internalID int
++
++		deadline := job.Deadline
++		if deadline == "" {
++			deadline = time.Now().Format("2006-01-02 15:04:05")
++		}
++		err := pool.QueryRow(ctx, `
++    INSERT INTO jobs
++        (job_id, title, company, description, source_url, source_platform, location, salary_range, created_at)
++    VALUES
++        ($1, $2, $3, $4, $5, $6, $7, $8, $9)
++    ON CONFLICT (job_id, source_platform) 
++    DO UPDATE SET 
++        title = EXCLUDED.title, 
++        company = EXCLUDED.company
++    RETURNING id
++`,
++			job.ID, job.Title.En, job.CompaniesStruct.Title.En, job.Title.En,
++			"staff.am", "staff.am", job.JobCity.Title.En, "100000", job.Deadline).Scan(&internalID)
++
++		if err == nil {
++			analyzeAndLinkSkills(ctx, pool, internalID, job.Title.En)
++		} else {
++			fmt.Println("Insert error:", err)
++		}
++	}
++}
++
++func makeJobAmDBInsertion(ctx context.Context, pool *pgxpool.Pool, data []Job_Am) {
++	for _, job := range data {
++		var internalID int
++		err := pool.QueryRow(ctx, `
++          INSERT INTO jobs
++             (job_id, title, company, description, source_url, source_platform, location, salary_range, created_at)
++          VALUES
++             ($1, $2, $3, $4, $5, $6, $7, $8, $9)
++          ON CONFLICT (job_id, source_platform) DO UPDATE 
++          SET title = EXCLUDED.title
++          RETURNING id
++       `,
++			job.ID, job.Title, job.Company, job.Title, "job.am", "job.am", job.Location, "100000", job.Deadline,
++		).Scan(&internalID)
++
++		if err == nil {
++			analyzeAndLinkSkills(ctx, pool, internalID, job.Title)
++		} else {
++			fmt.Println("Insert error:", err)
++		}
++	}
++}
+Index: scraperdip/search.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/scraperdip/search.go b/scraperdip/search.go
+--- a/scraperdip/search.go	(revision HEAD)
++++ b/scraperdip/search.go	(revision Staged)
+@@ -1,4 +1,4 @@
+-package main
++package scraperdip
+ 
+ import (
+ 	"context"
+Index: scraperdip/StaffResponse.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/scraperdip/StaffResponse.go b/scraperdip/StaffResponse.go
+--- a/scraperdip/StaffResponse.go	(revision HEAD)
++++ b/scraperdip/StaffResponse.go	(revision Staged)
+@@ -1,4 +1,4 @@
+-package main
++package scraperdip
+ 
+ type StaffJobResponse struct {
+ 	ID       int    `json:"id"`
+diff --git a/go.sum b/go.sum
+new file mode 100644
