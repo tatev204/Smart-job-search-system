@@ -1,4 +1,4 @@
-package main
+package scraperdip
 
 type StaffJobResponse struct {
 	ID       int    `json:"id"`
