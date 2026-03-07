@@ -1,0 +1,151 @@
+{
+  "header": {
+    "jobs": "Jobs",
+    "uploadCV": "Upload CV",
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register"
+  },
+  "home": {
+    "hero": {
+      "title": "Find Your Dream Job",
+      "description": "Smart job matching based on your skills. Upload your resume and let us find the perfect opportunities for you.",
+      "uploadBtn": "Upload CV",
+      "browseBtn": "Browse Jobs"
+    },
+    "professions": {
+      "title": "Most In-Demand Professions",
+      "selectField": "Select Field",
+      "allFields": "All Fields",
+      "fields": {
+        "technology": "Technology",
+        "healthcare": "Healthcare",
+        "finance": "Finance",
+        "marketing": "Marketing",
+        "education": "Education",
+        "engineering": "Engineering"
+      }
+    },
+    "hotJobs": {
+      "title": "🔥Hot Jobs",
+      "viewMore": "View More"
+    },
+    "footer": {
+      "about": "About MyJobs",
+      "description": "MyJobs is a platform that connects you with great opportunities aligned with your skills and career goals.",
+      "copyright": "© 2024 MyJobs. All rights reserved."
+    }
+  },
+  "search": {
+    "placeholder": "Search by job title or company...",
+    "found": "Found {count} jobs",
+    "noResults": "No jobs found."
+  },
+  "jobCard": {
+    "location": "Location",
+    "salary": "Salary",
+    "viewDetails": "View Details →"
+  },
+  "loading": "Loading...",
+  "error": "Error. Please try again.",
+  "profile": {
+    "title": "My Page",
+    "fullName": "Full Name",
+    "email": "Email",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "logout": "Logout",
+    "tabs": {
+      "profile": "Page",
+      "applications": "📋 Applications",
+      "notifications": "🔔 Notifications",
+      "messages": "💬 Messages",
+      "settings": "⚙️ Settings"
+    },
+    "profileInfo": "Page Information",
+    "editProfile": "✏️ Edit Page",
+    "myApplications": "My Applications",
+    "noApplications": "You don't have any applications yet",
+    "noApplicationsHint": "Start searching for jobs in the 'Jobs' section",
+    "notifications": "Notifications",
+    "noNotifications": "You have no new notifications",
+    "noNotificationsHint": "Notifications will appear here when companies respond to your applications",
+    "messages": "Messages",
+    "noMessages": "You have no messages",
+    "noMessagesHint": "Messages from companies will appear here",
+    "settings": "Settings",
+    "emailNotifications": "🔔 Email Notifications",
+    "emailNotificationsHint": "Get notifications about new jobs",
+    "darkMode": "🌙 Dark Mode",
+    "darkModeHint": "Switch to dark theme",
+    "twoFactor": "🔐 Two-Factor Authentication",
+    "twoFactorHint": "Enhance account security",
+    "enable": "Enable",
+    "dangerZone": "⚠️ Danger Zone",
+    "deleteAccount": "🗑️ Delete Account"
+  },
+  "login": {
+    "title": "Login",
+    "email": "Email Address",
+    "password": "Password",
+    "submit": "Login",
+    "loading": "Logging in...",
+    "forgotPassword": "Forgot Password?"
+  },
+  "upload": {
+    "title": "Upload Your CV",
+    "description": "Upload your resume so we can match you with the best job opportunities",
+    "clickToUpload": "Click to upload or drag and drop",
+    "fileTypes": "PDF, DOC or DOCX (Max 10MB)",
+    "selected": "Selected",
+    "uploadButton": "Upload CV",
+    "uploading": "Uploading...",
+    "success": "CV uploaded successfully!",
+    "successWithRecommendations": "CV uploaded successfully! Here are your job recommendations:",
+    "error": "Upload failed",
+    "selectFile": "Please select a file",
+    "invalidFileType": "Please upload a PDF or Word document",
+    "fileTooLarge": "File size must be less than 10MB",
+    "recommendationsTitle": "Recommended Jobs for You",
+    "match": "match",
+    "matchedSkills": "Matched Skills"
+  },
+  "jobs": {
+    "title": "Find Jobs",
+    "searchPlaceholder": "Search by job title or company...",
+    "region": "Region",
+    "category": "Category",
+    "level": "Experience Level",
+    "type": "Job Type",
+    "salary": "Salary Range",
+    "apply": "Apply",
+    "regions": {
+      "yerevan": "Yerevan",
+      "gyumri": "Gyumri",
+      "vanadzor": "Vanadzor",
+      "vagharshapat": "Vagharshapat",
+      "remote": "Remote"
+    },
+    "categories": {
+      "it": "IT",
+      "marketing": "Marketing",
+      "finance": "Finance",
+      "design": "Design",
+      "hr": "HR",
+      "sales": "Sales"
+    },
+    "levels": {
+      "junior": "Junior",
+      "middle": "Middle",
+      "senior": "Senior",
+      "lead": "Lead"
+    },
+    "types": {
+      "full_time": "Full Time",
+      "part_time": "Part Time",
+      "internship": "Internship",
+      "contract": "Contract"
+    },
+    "noResults": "No jobs found matching your criteria"
+  }
+}

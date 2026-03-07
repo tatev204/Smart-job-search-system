@@ -1,7 +1,7 @@
 package main
 
 import (
-	"getapi"
+	"api"
 	"log"
 	"scraperdip"
 	"sync"
@@ -14,7 +14,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		log.Println("Starting API on :8088...")
-		getapi.StartAPI()
+		api.StartAPI()
 	}()
 
 	go func() {
