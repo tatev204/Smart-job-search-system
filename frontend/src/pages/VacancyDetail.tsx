@@ -1,13 +1,7 @@
 import React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { getJobs, Job } from '../services/jobs'
-
-const fetchJob = async (id: string | undefined): Promise<Job | null> => {
-    if (!id) return null
-    const jobs = await getJobs()
-    return jobs.find((j) => j.id === Number(id)) || null
-}
+import { getJobById, Job } from '../services/jobs'
 
 const VacancyDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>()
@@ -15,7 +9,7 @@ const VacancyDetail: React.FC = () => {
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['job', id],
-        queryFn: () => fetchJob(id),
+        queryFn: () => getJobById(id!),
         enabled: !!id,
     })
 

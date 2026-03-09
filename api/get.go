@@ -47,6 +47,7 @@ func StartAPI() {
 	router.HandleFunc("/login", LoginHandler).Methods("POST")
 	// Сделано публичным — возвращает список вакансий без авторизации
 	router.HandleFunc("/jobs", GetJobsHandler).Methods("GET")
+	router.HandleFunc("/jobs/{id}", GetJobHandler).Methods("GET")
 	router.HandleFunc("/skills", AuthMiddleware(GetAllSkillsHandler)).Methods("GET")
 	router.HandleFunc("/recommendations", GetRecommendedJobsHandler).Methods("GET")
 	router.HandleFunc("/users/skills", AuthMiddleware(AddUserSkillsHandler)).Methods("POST")

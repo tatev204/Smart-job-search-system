@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 
@@ -13,6 +14,7 @@ interface RecommendedJob {
 
 const UploadResume: React.FC = () => {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [file, setFile] = useState<File | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [messageType, setMessageType] = useState<'success' | 'error' | null>(null)
@@ -200,6 +202,7 @@ const UploadResume: React.FC = () => {
               {recommendedJobs.map((job) => (
                 <div
                   key={job.id}
+                  onClick={() => navigate(`/jobs/${job.id}`)}
                   style={{
                     background: 'var(--bg-tertiary)',
                     borderRadius: '8px',

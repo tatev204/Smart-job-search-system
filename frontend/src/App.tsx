@@ -23,7 +23,7 @@ const App: React.FC = () => {
         <div className="app-header-left">
           <h1 style={{ margin: 0 }}><Link to="/">💼 MyJobs</Link></h1>
           <nav style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <Link to="/">{t('header.jobs')}</Link>
+            <Link to="/jobs">{t('header.jobs')}</Link>
             <Link to="/upload">{t('header.uploadCV')}</Link>
           </nav>
         </div>

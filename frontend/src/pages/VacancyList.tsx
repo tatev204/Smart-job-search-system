@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import Hero from '../components/Hero'
+import HotJobs from '../components/HotJobs'
 import ProfessionsSection from '../components/ProfessionsSection'
 import Footer from '../components/Footer'
 
@@ -13,6 +14,9 @@ const VacancyList: React.FC = () => {
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 20px', width: '100%' }}>
         <Hero />
       </div>
+
+      {/* Hot Jobs Section */}
+      <HotJobs />
 
       {/* Professions Section */}
       <ProfessionsSection />

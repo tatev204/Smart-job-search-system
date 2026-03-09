@@ -1,10 +1,12 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
 
@@ -50,6 +52,34 @@ func GetJobsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(jobs)
+}
+
+func getJobByIDFromDB(id string) (*Job, error) {
+	var job Job
+	query := `SELECT id, title, company, description, location, salary_range FROM "jobs" WHERE id = $1`
+	err := db.QueryRow(query, id).Scan(&job.ID, &job.Title, &job.Company, &job.Description, &job.Location, &job.Salary_Range)
+	if err != nil {
+		return nil, err
+	}
+	return &job, nil
+}
+
+func GetJobHandler(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id := params["id"]
+
+	job, err := getJobByIDFromDB(id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Job not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to retrieve job details", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(job)
 }
 
 func GetRecommendedJobsHandler(w http.ResponseWriter, r *http.Request) {

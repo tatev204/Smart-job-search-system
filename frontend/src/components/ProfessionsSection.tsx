@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 
 interface Profession {
   id: string
@@ -12,7 +13,9 @@ interface Profession {
 
 const ProfessionsSection: React.FC = () => {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [selectedField, setSelectedField] = useState<string>('all')
+  const [activeProfession, setActiveProfession] = useState<Profession | null>(null)
 
   const professions: Profession[] = [
     {
@@ -172,6 +175,7 @@ const ProfessionsSection: React.FC = () => {
           {filtered.map((profession) => (
             <div
               key={profession.id}
+              onClick={() => setActiveProfession(profession)}
               style={{
                 background: 'white',
                 borderRadius: '12px',
@@ -245,6 +249,168 @@ const ProfessionsSection: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Profession Detail Modal */}
+      {activeProfession && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+          onClick={() => setActiveProfession(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '40px',
+              maxWidth: '600px',
+              width: '100%',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+              position: 'relative',
+              animation: 'modalSlideIn 0.3s ease-out'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setActiveProfession(null)}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'none',
+                border: 'none',
+                fontSize: '24px',
+                cursor: 'pointer',
+                color: '#999'
+              }}
+            >
+              &times;
+            </button>
+
+            <h2 style={{
+              color: '#667eea',
+              fontSize: '28px',
+              fontWeight: '700',
+              marginBottom: '16px'
+            }}>
+              {activeProfession.title}
+            </h2>
+
+            <p style={{
+              fontSize: '18px',
+              color: '#333',
+              lineHeight: '1.6',
+              marginBottom: '24px'
+            }}>
+              {activeProfession.description}
+            </p>
+
+            <div style={{ marginBottom: '32px' }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: '8px',
+                fontSize: '14px',
+                color: '#666'
+              }}>
+                <span style={{ fontWeight: '500' }}>Уровень востребованности</span>
+                <span style={{ fontWeight: '600', color: '#667eea' }}>{activeProfession.demandLevel}%</span>
+              </div>
+              <div style={{
+                width: '100%',
+                height: '10px',
+                background: '#f0f0f0',
+                borderRadius: '5px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${activeProfession.demandLevel}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
+                }} />
+              </div>
+            </div>
+
+            <div style={{
+              backgroundColor: '#f8f9ff',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '32px'
+            }}>
+              <p style={{
+                margin: 0,
+                color: '#764ba2',
+                fontWeight: '600',
+                fontSize: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                💰 <span style={{ color: '#333', fontSize: '14px', fontWeight: '400' }}>Ожидаемая зарплата:</span> {activeProfession.salaryRange}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <button
+                onClick={() => {
+                  navigate(`/jobs?search=${encodeURIComponent(activeProfession.title)}`)
+                  setActiveProfession(null)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '14px 24px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s ease',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                Найти вакансии
+              </button>
+              <button
+                onClick={() => setActiveProfession(null)}
+                style={{
+                  padding: '14px 24px',
+                  background: 'white',
+                  color: '#666',
+                  border: '2px solid #eee',
+                  borderRadius: '10px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+          <style>
+            {`
+              @keyframes modalSlideIn {
+                from { transform: translateY(30px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+              }
+            `}
+          </style>
+        </div>
+      )}
     </div>
   )
 }

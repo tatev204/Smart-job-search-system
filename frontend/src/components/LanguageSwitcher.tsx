@@ -6,9 +6,9 @@ const LanguageSwitcher: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false)
 
   const languages = [
-    { code: 'en', label: '🇬🇧 English', flag: 'en' },
-    { code: 'ru', label: '🇷🇺 Русский', flag: '🇷🇺' },
-    { code: 'hy', label: '🇦🇲 Հայերեն', flag: '🇦🇲' }
+    { code: 'en', label: 'English', flagUrl: 'https://flagcdn.com/w40/gb.png' },
+    { code: 'ru', label: 'Русский', flagUrl: 'https://flagcdn.com/w40/ru.png' },
+    { code: 'hy', label: 'Հայերեն', flagUrl: 'https://flagcdn.com/w40/am.png' }
   ]
 
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0]
@@ -39,7 +39,11 @@ const LanguageSwitcher: React.FC = () => {
         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
         onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
       >
-        <span>{currentLanguage.flag}</span>
+        <img
+          src={currentLanguage.flagUrl}
+          alt={currentLanguage.code}
+          style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover' }}
+        />
         <span>{currentLanguage.code.toUpperCase()}</span>
         <span style={{ fontSize: '10px', marginLeft: '2px' }}>
           {isOpen ? '▲' : '▼'}
@@ -82,8 +86,12 @@ const LanguageSwitcher: React.FC = () => {
               onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
-              <span>{lang.flag}</span>
-              <span>{lang.label.split(' ')[1]}</span>
+              <img
+                src={lang.flagUrl}
+                alt={lang.code}
+                style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover' }}
+              />
+              <span>{lang.label}</span>
               {i18n.language === lang.code && (
                 <span style={{ marginLeft: 'auto', color: '#667eea' }}>✓</span>
               )}
