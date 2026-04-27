@@ -1,22 +1,28 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
 
+var db *sql.DB
+
+// --- STRUCTS ---
 type Job struct {
-	ID           int    `json:"id"`
-	Title        string `json:"title"`
-	Company      string `json:"company"`
-	Location     string `json:"location"`
-	Salary_Range string `json:"salary_range"`
-	Description  string `json:"description"`
+	ID              int    `json:"id"`
+	Title           string `json:"title"`
+	Company         string `json:"company"`
+	Location        string `json:"location"`
+	Salary_Range    string `json:"salary_range"`
+	Description     string `json:"description"`
+	FullDescription string `json:"full_description"`
+	PhoneNumber     string `json:"phone_number"`
 }
 
 type RecommendedJob struct {
@@ -27,59 +33,155 @@ type RecommendedJob struct {
 	MatchedSkills string  `json:"matched_skills"`
 }
 
-func getJobsFromDB() ([]Job, error) {
-	rows, err := db.Query("SELECT id, title, company, description, location, salary_range From \"jobs\"")
-	if err != nil {
-		return nil, fmt.Errorf("error executing query: %w", err)
-	}
-	defer rows.Close()
-	jobs := []Job{}
-	for rows.Next() {
-		var job Job
-		if err := rows.Scan(&job.ID, &job.Title, &job.Company, &job.Description, &job.Location, &job.Salary_Range); err != nil {
-			return nil, fmt.Errorf("error scanning row :%w", err)
-		}
-		jobs = append(jobs, job)
-	}
-	return jobs, nil
+type SaveJobRequest struct {
+	JobID int `json:"job_id"`
+}
+
+func InitDB(database *sql.DB) {
+	db = database
+}
+
+func StartAPI(database *sql.DB) {
+	db = database
+	r := mux.NewRouter()
+
+	r.HandleFunc("/register", userRegister).Methods("POST", "OPTIONS")
+	r.HandleFunc("/login", LoginHandler).Methods("POST", "OPTIONS")
+	r.HandleFunc("/jobs", GetJobsHandler).Methods("GET")
+	r.HandleFunc("/jobs/{id}", GetJobHandler).Methods("GET")
+	r.HandleFunc("/recommendations", GetRecommendedJobsHandler).Methods("GET")
+	r.HandleFunc("/extract-text", AuthMiddleware(ExtractOnlyTextHandler)).Methods("POST", "OPTIONS")
+
+	r.HandleFunc("/save-job", AuthMiddleware(SaveJobHandler)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/saved-jobs", AuthMiddleware(GetSavedJobsHandler)).Methods("GET", "OPTIONS")
+
+	r.HandleFunc("/ai/upload", AuthMiddleware(AIUploadHandler)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/ai/match-cv", AuthMiddleware(AICVMatchHandler)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/ai/elastic-search", AIElasticSearchHandler).Methods("GET", "OPTIONS")
+	r.HandleFunc("/upload-resume", AuthMiddleware(UploadResumeHandler)).Methods("POST", "OPTIONS")
+
+	log.Println("✅ API server is running on http://localhost:8088")
+	log.Fatal(http.ListenAndServe(":8088", enableCORS(r)))
 }
 
 func GetJobsHandler(w http.ResponseWriter, r *http.Request) {
-	jobs, err := getJobsFromDB()
+	rows, err := db.Query("SELECT id, title, COALESCE(company, ''), COALESCE(description, ''), COALESCE(location, ''), COALESCE(salary_range, '') FROM jobs ORDER BY id DESC")
 	if err != nil {
-		http.Error(w, "Failed to retrieve job listings.", http.StatusInternalServerError)
+		http.Error(w, "Query error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer rows.Close()
+
+	var jobs []Job
+	for rows.Next() {
+		var j Job
+		err := rows.Scan(&j.ID, &j.Title, &j.Company, &j.Description, &j.Location, &j.Salary_Range)
+		if err != nil {
+			log.Println("Scan error:", err)
+			continue
+		}
+		jobs = append(jobs, j)
+	}
+
+	if jobs == nil {
+		jobs = []Job{}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(jobs)
 }
 
-func getJobByIDFromDB(id string) (*Job, error) {
-	var job Job
-	query := `SELECT id, title, company, description, location, salary_range FROM "jobs" WHERE id = $1`
-	err := db.QueryRow(query, id).Scan(&job.ID, &job.Title, &job.Company, &job.Description, &job.Location, &job.Salary_Range)
-	if err != nil {
-		return nil, err
-	}
-	return &job, nil
-}
-
 func GetJobHandler(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["id"]
+	id := mux.Vars(r)["id"]
+	var j Job
 
-	job, err := getJobByIDFromDB(id)
+	err := db.QueryRow(`
+        SELECT id, title, 
+               COALESCE(company, ''), 
+               COALESCE(description, ''), 
+               COALESCE(location, ''), 
+               COALESCE(salary_range, ''),
+               COALESCE(full_description, ''),
+               COALESCE(phone_number, '')
+        FROM jobs WHERE id = $1`, id).
+		Scan(&j.ID, &j.Title, &j.Company, &j.Description, &j.Location, &j.Salary_Range, &j.FullDescription, &j.PhoneNumber)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Job not found", http.StatusNotFound)
 		} else {
-			http.Error(w, "Failed to retrieve job details", http.StatusInternalServerError)
+			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(job)
+	json.NewEncoder(w).Encode(j)
+}
+
+func SaveJobHandler(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value(claimsContextKey).(*UserToken)
+	if !ok {
+		http.Error(w, "Չհաջողվեց նույնականացնել օգտատիրոջը", http.StatusUnauthorized)
+		return
+	}
+
+	var req SaveJobRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Սխալ հարցում", http.StatusBadRequest)
+		return
+	}
+
+	query := `
+        INSERT INTO saved_jobs (user_id, job_id, saved_at) 
+        VALUES ($1, $2, CURRENT_TIMESTAMP) 
+        ON CONFLICT DO NOTHING`
+
+	_, err := db.Exec(query, claims.UserID, req.JobID)
+	if err != nil {
+		http.Error(w, "Տվյալների բազայի սխալ: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Աշխատանքը պահպանվեց"})
+}
+
+func GetSavedJobsHandler(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value(claimsContextKey).(*UserToken)
+	if !ok {
+		http.Error(w, "Չհաջողվեց նույնականացնել օգտատիրոջը", http.StatusUnauthorized)
+		return
+	}
+
+	query := `
+        SELECT j.id, j.title, COALESCE(j.company, ''), COALESCE(j.location, ''), COALESCE(j.salary_range, '') 
+        FROM jobs j
+        JOIN saved_jobs sj ON j.id = sj.job_id
+        WHERE sj.user_id = $1
+        ORDER BY sj.saved_at DESC`
+
+	rows, err := db.Query(query, claims.UserID)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var jobs []Job
+	for rows.Next() {
+		var j Job
+		err := rows.Scan(&j.ID, &j.Title, &j.Company, &j.Location, &j.Salary_Range)
+		if err == nil {
+			jobs = append(jobs, j)
+		}
+	}
+	if jobs == nil {
+		jobs = []Job{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(jobs)
 }
 
 func GetRecommendedJobsHandler(w http.ResponseWriter, r *http.Request) {
@@ -90,20 +192,17 @@ func GetRecommendedJobsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := `
-    SELECT 
-        j.id, 
-        j.title, 
-        j.company,
-        ROUND(CAST(COUNT(js.skill_id) AS NUMERIC) * 100 / 
-        NULLIF((SELECT COUNT(*) FROM job_skills WHERE job_id = j.id), 0), 2) as match_percentage,
-        -- Այստեղ վերցնում ենք հենց ԱՆՈՒՆՆԵՐԸ skills աղյուսակից
-        COALESCE(STRING_AGG(s.name, ', '), '') as matched_skills
-    FROM jobs j
-    JOIN job_skills js ON j.id = js.job_id
-    JOIN skills s ON js.skill_id = s.id -- Միացնում ենք սկիլերի անունների աղյուսակը
-    WHERE js.skill_id IN (SELECT skill_id FROM user_skills WHERE user_id = $1)
-    GROUP BY j.id, j.title, j.company
-    ORDER BY match_percentage DESC`
+       SELECT 
+          j.id, j.title, j.company,
+          ROUND(CAST(COUNT(js.skill_id) AS NUMERIC) * 100 / 
+          NULLIF((SELECT COUNT(*) FROM job_skills WHERE job_id = j.id), 0), 2) as match_percentage,
+          COALESCE(STRING_AGG(s.name, ', '), '') as matched_skills
+       FROM jobs j
+       JOIN job_skills js ON j.id = js.job_id
+       JOIN skills s ON js.skill_id = s.id
+       WHERE js.skill_id IN (SELECT skill_id FROM user_skills WHERE user_id = $1)
+       GROUP BY j.id, j.title, j.company
+       ORDER BY match_percentage DESC`
 
 	rows, err := db.Query(query, userID)
 	if err != nil {
@@ -112,16 +211,83 @@ func GetRecommendedJobsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var results []RecommendedJob
+	var res []RecommendedJob
 	for rows.Next() {
 		var rj RecommendedJob
-		// Հիշիր՝ Scan-ը պետք է ստանա 5 արգումենտ (MatchedSkills-ը վերջում)
-		if err := rows.Scan(&rj.ID, &rj.Title, &rj.Company, &rj.Percentage, &rj.MatchedSkills); err != nil {
+		err := rows.Scan(&rj.ID, &rj.Title, &rj.Company, &rj.Percentage, &rj.MatchedSkills)
+		if err != nil {
+			log.Println("Scan error in recommendations:", err)
 			continue
 		}
-		results = append(results, rj)
+		res = append(res, rj)
+	}
+
+	if res == nil {
+		res = []RecommendedJob{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	json.NewEncoder(w).Encode(res)
+}
+
+func enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// --- AI Որոնման ֆիլտրեր և ֆունկցիա ---
+type SearchFilters struct {
+	Keywords string `json:"keywords"`
+	Location string `json:"location"`
+	Title    string `json:"title"`
+	Limit    int    `json:"limit"`
+}
+
+func searchJobs(ctx context.Context, filters SearchFilters) ([]Job, error) {
+	limit := filters.Limit
+	if limit == 0 {
+		limit = 20
+	}
+
+	keywordToSearch := filters.Keywords
+	if keywordToSearch == "" && filters.Title != "" {
+		keywordToSearch = filters.Title
+	}
+
+	query := `
+       SELECT id, title, COALESCE(company, ''), COALESCE(description, ''), COALESCE(location, ''), COALESCE(salary_range, '') 
+       FROM jobs 
+       WHERE ($1 = '' OR title ILIKE '%' || $1 || '%' OR description ILIKE '%' || $1 || '%')
+       AND ($2 = '' OR location ILIKE '%' || $2 || '%')
+       ORDER BY id DESC LIMIT $3`
+
+	rows, err := db.QueryContext(ctx, query, keywordToSearch, filters.Location, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var jobs []Job
+	for rows.Next() {
+		var j Job
+		if err := rows.Scan(&j.ID, &j.Title, &j.Company, &j.Description, &j.Location, &j.Salary_Range); err == nil {
+			jobs = append(jobs, j)
+		}
+	}
+
+	if jobs == nil {
+		jobs = []Job{}
+	}
+
+	return jobs, nil
 }

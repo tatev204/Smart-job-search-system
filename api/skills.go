@@ -1,10 +1,10 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-
-	_ "github.com/lib/pq"
+	dblib "scraperdip/db"
 )
 
 type Skill struct {
@@ -13,7 +13,7 @@ type Skill struct {
 }
 
 func GetAllSkillsHandler(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query("SELECT id, name FROM skills ORDER BY name ASC")
+	rows, err := dblib.Get().Query(context.Background(), "SELECT id, name FROM skills ORDER BY name ASC")
 	if err != nil {
 		http.Error(w, "Failed to load skills.", http.StatusInternalServerError)
 		return

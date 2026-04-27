@@ -2,7 +2,23 @@
 
 This repository contains two services started by `main.go`:
 - API (Go) — runs on port 8088
-- Scraper (Go) — runs on port 8080
+- Scraper (Go) — runs on port 8080 (also uses 8070)
+
+## Running with Docker
+
+The easiest way to run the entire project is using Docker Compose.
+
+1. Ensure you have Docker and Docker Compose installed.
+2. From the project root, run:
+   ```bash
+   docker-compose up --build
+   ```
+3. The services will be available at:
+   - Frontend: http://localhost
+   - Backend API: http://localhost:8088
+   - Scraper API: http://localhost:8070
+
+## Manual Setup
 
 To run both services locally:
 

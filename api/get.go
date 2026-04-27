@@ -1,60 +1,29 @@
 package api
 
 import (
-	"database/sql"
-	"fmt"
-	"log"
-	"net/http"
+	"bytes"
+	"io"
 
-	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	"github.com/dslipak/pdf"
 )
 
-var db *sql.DB
-
-func enableCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Թույլատրում ենք քո React ֆրոնտենդին
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		// Եթե բրաուզերը ուղարկում է OPTIONS (preflight) հարցում, միանգամից պատասխանում ենք OK
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func StartAPI() {
-	var err error
-	connStr := "user=postgres password=tatev1234 dbname=JobDB sslmode=disable"
-
-	db, err = sql.Open("postgres", connStr)
+// ExtractTextFromPDF-ը հասանելի կլինի ամբողջ package-ին (այդ թվում textread.go-ին)
+func ExtractTextFromPDF(f io.ReaderAt, size int64) (string, error) {
+	r, err := pdf.NewReader(f, size)
 	if err != nil {
-		log.Fatalf("Failed to open database connection :%v", err)
-	}
-	if err = db.Ping(); err != nil {
-		log.Fatalf("failed to ping database : %v", err)
+		return "", err
 	}
 
-	router := mux.NewRouter()
+	var buf bytes.Buffer
+	b, err := r.GetPlainText()
+	if err != nil {
+		return "", err
+	}
 
-	router.HandleFunc("/users", userRegister).Methods("POST")
-	router.HandleFunc("/login", LoginHandler).Methods("POST")
-	// Сделано публичным — возвращает список вакансий без авторизации
-	router.HandleFunc("/jobs", GetJobsHandler).Methods("GET")
-	router.HandleFunc("/jobs/{id}", GetJobHandler).Methods("GET")
-	router.HandleFunc("/skills", AuthMiddleware(GetAllSkillsHandler)).Methods("GET")
-	router.HandleFunc("/recommendations", GetRecommendedJobsHandler).Methods("GET")
-	router.HandleFunc("/users/skills", AuthMiddleware(AddUserSkillsHandler)).Methods("POST")
-	router.HandleFunc("/upload-cv", UploadResumeHandler).Methods("POST")
+	_, err = buf.ReadFrom(b)
+	if err != nil {
+		return "", err
+	}
 
-	port := ":8088"
-	fmt.Printf("API Server running on http://localhost%s\n", port)
-
-	log.Fatal(http.ListenAndServe(port, enableCORS(router)))
+	return buf.String(), nil
 }

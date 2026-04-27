@@ -1,13 +1,15 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { getJobs, Job } from '../services/jobs'
+import { getJobs, searchJobs, Job } from '../services/jobs'
 
 const Jobs: React.FC = () => {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  
   const [filters, setFilters] = useState({
     region: '',
     salary: [0, 1000000],
@@ -16,27 +18,41 @@ const Jobs: React.FC = () => {
     type: ''
   })
 
-  const { data: jobsData = [], isLoading, error } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: getJobs,
-  })
-
   useEffect(() => {
     const search = new URLSearchParams(window.location.search).get('search')
     if (search) {
       setSearchTerm(search)
+      setDebouncedSearch(search)
     }
   }, [])
 
-  const filteredJobs = useMemo(() => {
-    return jobsData.filter(job => {
-      const matchSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (job.description || '').toLowerCase().includes(searchTerm.toLowerCase())
-      const matchRegion = !filters.region || (job.location || '').toLowerCase().includes(filters.region.toLowerCase())
-      return matchSearch && matchRegion
-    })
-  }, [jobsData, searchTerm, filters])
+  // Debounce search term to prevent spamming the backend
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  const { data: jobsResult, isLoading, error } = useQuery({
+    queryKey: ['jobs', debouncedSearch],
+    queryFn: async () => {
+      if (debouncedSearch.trim() === '') {
+        // Fallback to getting top recent jobs if no search
+        return await getJobs()
+      } else {
+        const result = await searchJobs({ q: debouncedSearch, limit: 200 })
+        return result.items || []
+      }
+    },
+  })
+
+  // We still do region filtering client side simply because region uses a localized list
+  // However, the text search is now correctly dispatched to the backend.
+  const filteredJobs = (jobsResult || []).filter((job: Job) => {
+    const matchRegion = !filters.region || (job.location || '').toLowerCase().includes(filters.region.toLowerCase())
+    return matchRegion
+  })
 
   const handleLanguageChange = (lang: string) => {
     i18n.changeLanguage(lang)

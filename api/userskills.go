@@ -1,9 +1,11 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	dblib "scraperdip/db"
 )
 
 type UserSkillsRequest struct {
@@ -18,37 +20,39 @@ func AddUserSkillsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := db.Begin()
+	ctx := context.Background()
+	tx, err := dblib.Get().Begin(ctx)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
+	defer tx.Rollback(ctx)
 
-	_, err = tx.Exec("Delete from user_skills where user_id=$1", req.UserID)
+	_, err = tx.Exec(ctx, "Delete from user_skills where user_id=$1", req.UserID)
 	if err != nil {
-		tx.Rollback()
 		http.Error(w, "failed to update skills", http.StatusInternalServerError)
 		return
 	}
+
 	for _, name := range req.SkillNames {
 		var skillID int
-		err := tx.QueryRow("SELECT id FROM skills WHERE name = $1", name).Scan(&skillID)
+		err := tx.QueryRow(ctx, "SELECT id FROM skills WHERE name = $1", name).Scan(&skillID)
 		if err != nil {
 			fmt.Printf("Skill not found: %s\n", name)
 			continue
 		}
-		_, err = tx.Exec("INSERT INTO user_skills(user_id, skill_id) VALUES($1, $2)", req.UserID, skillID)
+		_, err = tx.Exec(ctx, "INSERT INTO user_skills(user_id, skill_id) VALUES($1, $2)", req.UserID, skillID)
 		if err != nil {
-			tx.Rollback()
 			http.Error(w, "Error inserting skills", http.StatusInternalServerError)
 			return
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		http.Error(w, "Transactioncommit error ", http.StatusInternalServerError)
+
+	if err := tx.Commit(ctx); err != nil {
+		http.Error(w, "Transaction commit error", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Contetnt-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Skills added successfully"})
 
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Skills added successfully"})
 }

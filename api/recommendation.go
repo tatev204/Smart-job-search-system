@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 )
 
 type SkillsMatch struct {
@@ -54,21 +53,17 @@ func GetMatchingJobs(db *sql.DB, userID int) ([]SkillsMatch, error) {
 
 func RecommendJobsHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userIDStr := r.URL.Query().Get("user_id")
-		if userIDStr == "" {
-			http.Error(w, "user_id is required", http.StatusBadRequest)
+		claims, ok := r.Context().Value(claimsContextKey).(*UserToken)
+		if !ok {
+			http.Error(w, "Չհաջողվեց նույնականացնել օգտատիրոջը", http.StatusUnauthorized)
 			return
 		}
 
-		userID, err := strconv.Atoi(userIDStr)
-		if err != nil {
-			http.Error(w, "Invalid user_id", http.StatusBadRequest)
-			return
-		}
+		userID := claims.UserID
 
 		recommendations, err := GetMatchingJobs(db, userID)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Սխալ: %v", err), http.StatusInternalServerError)
 			return
 		}
 
