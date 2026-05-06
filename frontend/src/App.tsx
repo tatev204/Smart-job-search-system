@@ -1,285 +1,81 @@
-// import React, { useState } from 'react'
-// import { Routes, Route, Link, useLocation } from 'react-router-dom'
-// import { useTranslation } from 'react-i18next'
-// import VacancyList from './pages/VacancyList'
-// import Jobs from './pages/Jobs'
-// import VacancyDetail from './pages/VacancyDetail'
-// import UploadResume from './pages/UploadResume'
-// import Login from './pages/Login'
-// import Register from './pages/Register'
-// import Profile from './pages/Profile'
-// import { useAuth } from './contexts/AuthContext'
-// import LanguageSwitcher from './components/LanguageSwitcher'
-//
-// const App: React.FC = () => {
-//   const auth = useAuth()
-//   const { t } = useTranslation()
-//   const location = useLocation()
-//   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-//
-//   return (
-//     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-//       <header className="app-header">
-//         <div className="app-header-left">
-//           <h1 style={{ margin: 0 }}><Link to="/">💼 MyJobs</Link></h1>
-//           <nav style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-//             <Link to="/jobs">{t('header.jobs')}</Link>
-//             <Link to="/upload">{t('header.uploadCV')}</Link>
-//           </nav>
-//         </div>
-//
-//         <div className="app-header-right">
-//           <LanguageSwitcher />
-//           {auth.token ? (
-//             <div style={{ position: 'relative' }}>
-//               <button
-//                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-//                 style={{
-//                   color: 'white',
-//                   background: 'rgba(255, 255, 255, 0.1)',
-//                   border: '1px solid white',
-//                   padding: '8px 16px',
-//                   borderRadius: '6px',
-//                   cursor: 'pointer',
-//                   fontWeight: 600,
-//                   fontSize: '14px',
-//                   transition: 'all 0.3s ease'
-//                 }}
-//                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-//                 onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-//               >
-//                 👤 {auth.firstName}
-//               </button>
-//
-//               {/* Dropdown меню */}
-//               {profileMenuOpen && (
-//                 <div style={{
-//                   position: 'absolute',
-//                   top: '100%',
-//                   right: 0,
-//                   background: 'white',
-//                   borderRadius: '8px',
-//                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-//                   minWidth: '200px',
-//                   marginTop: '8px',
-//                   zIndex: 1000
-//                 }}>
-//                   <Link
-//                     to="/profile"
-//                     onClick={() => setProfileMenuOpen(false)}
-//                     style={{
-//                       display: 'block',
-//                       padding: '12px 16px',
-//                       color: '#333',
-//                       textDecoration: 'none',
-//                       fontWeight: 500,
-//                       borderBottom: '1px solid #f0f0f0',
-//                       transition: 'background 0.3s ease',
-//                       cursor: 'pointer'
-//                     }}
-//                     onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-//                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-//                   >
-//                     👤 {t('profile.title')}
-//                   </Link>
-//                   <button
-//                     onClick={() => {
-//                       auth.logout()
-//                       setProfileMenuOpen(false)
-//                       window.location.href = '/login'
-//                     }}
-//                     style={{
-//                       width: '100%',
-//                       padding: '12px 16px',
-//                       color: '#c62828',
-//                       background: 'transparent',
-//                       border: 'none',
-//                       textAlign: 'left',
-//                       fontWeight: 500,
-//                       cursor: 'pointer',
-//                       transition: 'background 0.3s ease'
-//                     }}
-//                     onMouseEnter={(e) => e.currentTarget.style.background = '#ffebee'}
-//                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-//                   >
-//                     {t('profile.logout')}
-//                   </button>
-//                 </div>
-//               )}
-//             </div>
-//           ) : (
-//             <>
-//               <Link to="/login">{t('header.login')}</Link>
-//               <Link to="/register">{t('header.register') || 'Register'}</Link>
-//             </>
-//           )}
-//         </div>
-//       </header>
-//       <main style={{ flex: 1 }}>
-//         <Routes>
-//           <Route path="/" element={<VacancyList />} />
-//           <Route path="/jobs" element={<Jobs />} />
-//           <Route path="/jobs/:id" element={<VacancyDetail />} />
-//           <Route path="/upload" element={<UploadResume />} />
-//           <Route path="/login" element={<Login />} />
-//           <Route path="/register" element={<Register />} />
-//           <Route path="/profile" element={<Profile />} />
-//         </Routes>
-//       </main>
-//     </div>
-//   )
-// }
-//
-// export default App
-import React, { useState } from 'react'
-import { Routes, Route, Link, useLocation } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-import VacancyList from './pages/VacancyList'
-import Jobs from './pages/Jobs'
-import VacancyDetail from './pages/VacancyDetail'
-import UploadResume from './pages/UploadResume'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import Profile from './pages/Profile'
-import SearchJobs from './pages/search_jobs' // 👈 ԱՎԵԼԱՑՎԱԾ Է
-import { useAuth } from './contexts/AuthContext'
-import LanguageSwitcher from './components/LanguageSwitcher'
+import React from 'react';
+import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+
+// ԲՈԼՈՐ ԷՋԵՐԻ ՃԻՇՏ IMPORT-ՆԵՐԸ
+import Home from './pages/Home';
+import VacancyList from './pages/VacancyList';
+import VacancyDetail from './pages/VacancyDetail';
+import Profile from './pages/Profile';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import UploadResume from './pages/UploadResume';
+import SearchJobs from './pages/search_jobs';
 
 const App: React.FC = () => {
-    const auth = useAuth()
-    const { t } = useTranslation()
-    const location = useLocation()
-    const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+    const { user } = useAuth();
+    const navigate = useNavigate();
+
+    const theme = {
+        navy: '#2F4156',
+        teal: '#567C8D',
+        skyBlue: '#C8D9E6',
+        beige: '#F5EFEB',
+        white: '#FFFFFF'
+    };
 
     return (
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-            <header className="app-header">
-                <div className="app-header-left">
-                    <h1 style={{ margin: 0 }}><Link to="/">💼 MyJobs</Link></h1>
-                    <nav style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                        <Link to="/jobs">{t('header.jobs')}</Link>
-                        <Link to="/upload">{t('header.uploadCV')}</Link>
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: theme.beige }}>
 
-                        {/* 👈 ԱՎԵԼԱՑՎԱԾ Է. Գեղեցիկ կոճակ դեպի AI որոնում */}
-                        <Link
-                            to="/ai-search"
-                            style={{
-                                background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
-                                color: 'white',
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                fontWeight: 'bold',
-                                textDecoration: 'none'
-                            }}
-                        >
-                            🤖 AI Որոնում
-                        </Link>
+            {/* --- ՎԵՐԵՎԻ ՄԵՆՅՈՒՆ (HEADER) --- */}
+            <header style={{
+                background: theme.navy, padding: '12px 40px', display: 'flex',
+                justifyContent: 'space-between', alignItems: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)', position: 'sticky', top: 0, zIndex: 1000
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '35px' }}>
+                    {/* ԼՈԳՈՆ. Տանում է գլխավոր Home էջ */}
+                    <Link to="/" style={{ color: theme.white, textDecoration: 'none', fontWeight: '800', fontSize: '26px' }}>
+                        MyJobs
+                    </Link>
+
+                    <nav style={{ display: 'flex', gap: '20px' }}>
+                        {/* ԱՇԽԱՏԱՆՔՆԵՐԸ. Տանում է ֆիլտրերով ցուցակի էջ */}
+                        <Link to="/jobs" style={{ color: theme.white, textDecoration: 'none', fontWeight: '500' }}>Աշխատանքներ</Link>
+                        <Link to="/upload" style={{ color: theme.white, textDecoration: 'none', fontWeight: '500' }}>Վերբեռնել CV</Link>
+                        <Link to="/ai-search" style={{ color: theme.white, textDecoration: 'none', fontWeight: '500' }}>AI Որոնում</Link>
                     </nav>
                 </div>
 
-                <div className="app-header-right">
-                    <LanguageSwitcher />
-                    {auth.token ? (
-                        <div style={{ position: 'relative' }}>
-                            <button
-                                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                                style={{
-                                    color: 'white',
-                                    background: 'rgba(255, 255, 255, 0.1)',
-                                    border: '1px solid white',
-                                    padding: '8px 16px',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    fontWeight: 600,
-                                    fontSize: '14px',
-                                    transition: 'all 0.3s ease'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                            >
-                                👤 {auth.firstName}
-                            </button>
-
-                            {/* Dropdown меню */}
-                            {profileMenuOpen && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    right: 0,
-                                    background: 'white',
-                                    borderRadius: '8px',
-                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                                    minWidth: '200px',
-                                    marginTop: '8px',
-                                    zIndex: 1000
-                                }}>
-                                    <Link
-                                        to="/profile"
-                                        onClick={() => setProfileMenuOpen(false)}
-                                        style={{
-                                            display: 'block',
-                                            padding: '12px 16px',
-                                            color: '#333',
-                                            textDecoration: 'none',
-                                            fontWeight: 500,
-                                            borderBottom: '1px solid #f0f0f0',
-                                            transition: 'background 0.3s ease',
-                                            cursor: 'pointer'
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                    >
-                                        👤 {t('profile.title')}
-                                    </Link>
-                                    <button
-                                        onClick={() => {
-                                            auth.logout()
-                                            setProfileMenuOpen(false)
-                                            window.location.href = '/login'
-                                        }}
-                                        style={{
-                                            width: '100%',
-                                            padding: '12px 16px',
-                                            color: '#c62828',
-                                            background: 'transparent',
-                                            border: 'none',
-                                            textAlign: 'left',
-                                            fontWeight: 500,
-                                            cursor: 'pointer',
-                                            transition: 'background 0.3s ease'
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = '#ffebee'}
-                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                    >
-                                        {t('profile.logout')}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    {user ? (
+                        <button onClick={() => navigate('/profile')} style={{ background: theme.teal, color: 'white', border: 'none', padding: '10px 22px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>
+                            👤 {user.firstName || 'Իմ Էջը'}
+                        </button>
                     ) : (
-                        <>
-                            <Link to="/login">{t('header.login')}</Link>
-                            <Link to="/register">{t('header.register') || 'Register'}</Link>
-                        </>
+                        <button onClick={() => navigate('/login')} style={{ background: theme.white, color: theme.navy, border: 'none', padding: '10px 25px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>
+                            Մուտք
+                        </button>
                     )}
                 </div>
             </header>
-            <main style={{ flex: 1 }}>
+
+            {/* --- ԷՋԵՐԻ ԲԵՌՆՄԱՆ ՀԱՏՎԱԾԸ (ROUTES) --- */}
+            <main style={{ flex: 1, padding: '30px 40px' }}>
                 <Routes>
-                    <Route path="/" element={<VacancyList />} />
-                    <Route path="/jobs" element={<Jobs />} />
+                    <Route path="/" element={<Home />} />
+                    <Route path="/jobs" element={<VacancyList />} />
                     <Route path="/jobs/:id" element={<VacancyDetail />} />
-                    <Route path="/upload" element={<UploadResume />} />
+
+                    <Route path="/profile" element={<Profile />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
-                    <Route path="/profile" element={<Profile />} />
-
-                    {/* 👈 ԱՎԵԼԱՑՎԱԾ Է. Նոր էջի ճանապարհը */}
+                    <Route path="/upload" element={<UploadResume />} />
                     <Route path="/ai-search" element={<SearchJobs />} />
                 </Routes>
             </main>
         </div>
-    )
-}
+    );
+};
 
-export default App
+export default App;

@@ -6,19 +6,18 @@ import ru from './locales/ru.json'
 import hy from './locales/hy.json'
 
 i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    resources: {
-      en: { translation: en },
-      ru: { translation: ru },
-      hy: { translation: hy }
-    },
-    fallbackLng: 'en',
-    interpolation: {
-      escapeValue: false
-    }
-  })
+    .use(LanguageDetector)
+    .use(initReactI18next)
+    .init({
+        resources: {
+            en: { translation: en },
+            ru: { translation: ru },
+            hy: { translation: hy }
+        },
+        fallbackLng: 'en',
+        interpolation: {
+            escapeValue: false
+        }
+    })
 
 export default i18n
-

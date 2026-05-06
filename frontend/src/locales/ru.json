@@ -6,146 +6,39 @@
     "logout": "Выход",
     "register": "Регистрация"
   },
-  "home": {
-    "hero": {
-      "title": "🚀 Найдите Свою Идеальную Работу",
-      "description": "Умное соответствие работы на основе ваших навыков. Загрузите ваше резюме и позвольте нам найти для вас лучшие возможности.",
-      "uploadBtn": "Загрузить CV",
-      "browseBtn": "Просмотреть Вакансии"
-    },
-    "professions": {
-      "title": "📊 Профессии с Наибольшим Спросом",
-      "selectField": "Выберите Область",
-      "allFields": "Все Области",
-      "fields": {
-        "technology": "Технология",
-        "healthcare": "Здравоохранение",
-        "finance": "Финансы",
-        "marketing": "Маркетинг",
-        "education": "Образование",
-        "engineering": "Инженерия"
-      }
-    },
-    "hotJobs": {
-      "title": "🔥 Горячие Вакансии",
-      "viewMore": "Подробнее"
-    },
-    "footer": {
-      "about": "О MyJobs",
-      "description": "MyJobs - платформа, которая связывает вас с отличными возможностями в соответствии с вашими навыками и целями карьеры.",
-      "copyright": "© 2024 MyJobs. Все права защищены."
-    }
-  },
-  "search": {
-    "placeholder": "Поиск по должности или компании...",
-    "found": "Найдено {count} вакансий",
-    "noResults": "Вакансии не найдены."
-  },
-  "jobCard": {
-    "location": "Местоположение",
-    "salary": "Зарплата",
-    "viewDetails": "Подробнее →"
-  },
-  "loading": "Загрузка...",
-  "error": "Ошибка. Пожалуйста, попробуйте снова.",
   "profile": {
     "title": "Моя страница",
-    "fullName": "Полное имя",
-    "email": "Email",
+    "infoTitle": "Информация страницы",
     "firstName": "Имя",
     "lastName": "Фамилия",
-    "logout": "🚪 Выход",
+    "email": "Email",
+    "logout": "Выход",
+    "notSet": "Не указано",
     "tabs": {
       "profile": "👤 Страница",
-      "applications": "📋 Заявки",
-      "notifications": "🔔 Уведомления",
-      "messages": "💬 Сообщения",
+      "savedJobs": "🔖 Сохраненные",
       "settings": "⚙️ Настройки"
     },
-    "profileInfo": "Информация страницы",
-    "editProfile": "✏️ Редактировать страницу",
-    "myApplications": "Мои заявки",
-    "noApplications": "У вас пока нет заявок на вакансии",
-    "noApplicationsHint": "Начните искать вакансии в разделе 'Jobs'",
-    "notifications": "Уведомления",
-    "noNotifications": "У вас нет новых уведомлений",
-    "noNotificationsHint": "Уведомления появятся здесь, когда компании откликнутся на ваши заявки",
-    "messages": "Сообщения",
-    "noMessages": "У вас нет сообщений",
-    "noMessagesHint": "Сообщения от компаний появятся здесь",
     "settings": "Настройки",
-    "emailNotifications": "🔔 Уведомления по email",
-    "emailNotificationsHint": "Получайте уведомления о новых вакансиях",
-    "darkMode": "🌙 Тёмный режим",
-    "darkModeHint": "Переключить на тёмную тему",
-    "twoFactor": "🔐 Двухфакторная аутентификация",
-    "twoFactorHint": "Повысить безопасность аккаунта",
-    "enable": "Включить",
-    "dangerZone": "⚠️ Опасная зона",
-    "deleteAccount": "🗑️ Удалить аккаунт"
-  },
-  "login": {
-    "title": "Вход",
-    "email": "Электронная почта",
-    "password": "Пароль",
-    "submit": "Войти",
-    "loading": "Вход...",
-    "forgotPassword": "Забыли пароль?"
-  },
-  "upload": {
-    "title": "Загрузить ваше CV",
-    "description": "Загрузите ваше резюме, чтобы мы подобрали для вас лучшие вакансии",
-    "clickToUpload": "Нажмите для загрузки или перетащите файл",
-    "fileTypes": "PDF, DOC или DOCX (Макс 10MB)",
-    "selected": "Выбрано",
-    "uploadButton": "Загрузить CV",
-    "uploading": "Загрузка...",
-    "success": "CV успешно загружено!",
-    "successWithRecommendations": "CV успешно загружено! Вот ваши рекомендации по вакансиям:",
-    "error": "Ошибка загрузки",
-    "selectFile": "Пожалуйста, выберите файл",
-    "invalidFileType": "Пожалуйста, загрузите PDF или Word документ",
-    "fileTooLarge": "Размер файла должен быть менее 10MB",
-    "recommendationsTitle": "Рекомендуемые вакансии для вас",
-    "match": "совпадение",
-    "matchedSkills": "Совпадающие навыки"
+    "darkMode": "🌙 Темный режим"
   },
   "jobs": {
     "title": "Найти работу",
-    "searchPlaceholder": "Поиск по названию вакансии или компании...",
+    "reset": "Сбросить",
+    "searchPlaceholder": "Поиск по должности или компании...",
     "region": "Регион",
     "category": "Категория",
     "level": "Уровень опыта",
     "type": "Тип работы",
     "salary": "Диапазон зарплаты",
-    "apply": "Откликнуться",
     "regions": {
       "yerevan": "Ереван",
       "gyumri": "Гюмри",
       "vanadzor": "Ванадзор",
       "vagharshapat": "Вагаршапат",
       "remote": "Удалённо"
-    },
-    "categories": {
-      "it": "IT",
-      "marketing": "Маркетинг",
-      "finance": "Финансы",
-      "design": "Дизайн",
-      "hr": "HR",
-      "sales": "Продажи"
-    },
-    "levels": {
-      "junior": "Junior",
-      "middle": "Middle",
-      "senior": "Senior",
-      "lead": "Lead"
-    },
-    "types": {
-      "full_time": "Полная занятость",
-      "part_time": "Частичная занятость",
-      "internship": "Стажировка",
-      "contract": "Контракт"
-    },
-    "noResults": "Вакансий, соответствующих вашим критериям, не найдено"
-  }
+    }
+  },
+  "loading": "Загрузка...",
+  "error": "Ошибка. Пожалуйста, попробуйте снова."
 }

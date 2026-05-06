@@ -18,7 +18,6 @@ func Init(ctx context.Context) {
 	once.Do(func() {
 		dsn := os.Getenv("DATABASE_URL")
 		if dsn == "" {
-
 			dsn = "postgres://postgres:tatev1234@localhost:5432/JobDB?sslmode=disable"
 		}
 

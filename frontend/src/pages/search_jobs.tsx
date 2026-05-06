@@ -1,95 +1,118 @@
 import React, { useState } from 'react';
-import api from '../services/api'; // Օգտագործում է քո սահմանած axios service-ը
+import { Link } from 'react-router-dom';
+import api from '../services/api';
 
 const SearchJobs: React.FC = () => {
-    const [query, setQuery] = useState('');
-    const [aiResponse, setAiResponse] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    // Վիճակները (States)
+    const [searchTerm, setSearchTerm] = useState('');
+    const [jobs, setJobs] = useState<any[]>([]); // Զանգված աշխատանքների համար
+    const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState(''); // Սխալների ցուցադրման համար
 
-    // Ֆունկցիա, որը կատարում է հարցումը դեպի բեքենդ
-    const handleSearch = async (e: React.FormEvent) => {
+    const handleAISearch = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!query.trim()) return;
 
-        setIsLoading(true);
-        setError(null);
-        setAiResponse(null);
+        if (!searchTerm.trim()) return;
+
+        setLoading(true);
+        setErrorMsg('');
+        setJobs([]); // Մաքրում ենք նախորդ արդյունքները նոր որոնումից առաջ
 
         try {
-            // Կանչում ենք GET /ai/elastic-search?q=...
-            const res = await api.get('/ai/elastic-search', {
-                params: { q: query }
-            });
+            const res = await api.get(`/ai/elastic-search?q=${encodeURIComponent(searchTerm)}`);
 
-            // Բեքենդը վերադարձնում է {"ai_response": "..."}
-            if (res.data && res.data.ai_response) {
-                setAiResponse(res.data.ai_response);
+            // Ստուգում ենք, արդյոք տվյալը եկել է և արդյոք զանգված է
+            if (res.data && Array.isArray(res.data.jobs)) {
+                setJobs(res.data.jobs);
             } else {
-                setAiResponse("Արդյունք չգտնվեց:");
+                console.warn("Backend didn't return an array of jobs:", res.data);
+                setJobs([]);
             }
-        } catch (err: any) {
-            setError("Սերվերի սխալ: Համոզվեք, որ Go բեքենդը աշխատում է 8088 պորտի վրա:");
+        } catch (error) {
+            console.error("AI Search Error:", error);
+            setErrorMsg("Ներողություն, որոնման ընթացքում սխալ տեղի ունեցավ: Ստուգեք կապը բեքենդի հետ:");
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
-    // Ֆունկցիա տեքստի ֆորմատավորման համար (համարժեք Postman-ի արդյունքին)
-    const formatText = (text: string) => {
-        return text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // **text** -> bold
-            .replace(/\n/g, '<br/>'); // \n -> new line
-    };
-
     return (
-        <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px' }}>
-            <div style={{ background: '#fff', borderRadius: '15px', padding: '30px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-                <h2 style={{ textAlign: 'center', color: '#333' }}>🤖 AI Խելացի Որոնում</h2>
+        <div style={{ maxWidth: '1000px', margin: '50px auto', textAlign: 'center', padding: '0 20px' }}>
+            <h1 style={{ fontSize: '36px', color: '#2F4156', fontWeight: '900' }}>
+                🤖 AI Խելացի Որոնում
+            </h1>
 
-                <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                    <input
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Գրեք Ձեր հարցումը (օր.՝ Risk Management Specialist)..."
-                        style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }}
-                    />
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        style={{
-                            padding: '12px 24px',
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // Քո նախընտրած գրադիենտը
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: '8px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        {isLoading ? '⏳' : 'Որոնել'}
-                    </button>
-                </form>
+            {/* ՈՐՈՆՄԱՆ ԴԱՇՏ */}
+            <form onSubmit={handleAISearch} style={{ marginTop: '40px', maxWidth: '800px', margin: '40px auto 20px' }}>
+                <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Ի՞նչ աշխատանք եք փնտրում... (օր.՝ վիդեո մոնտաժող)"
+                    style={{
+                        width: '100%', padding: '20px', borderRadius: '15px',
+                        border: '2px solid #C8D9E6', fontSize: '18px', outline: 'none',
+                        boxSizing: 'border-box'
+                    }}
+                />
+                <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                        marginTop: '20px', width: '100%', padding: '18px',
+                        background: '#7b68ee', color: 'white', border: 'none',
+                        borderRadius: '15px', fontSize: '20px', fontWeight: 'bold',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        transition: '0.3s'
+                    }}
+                >
+                    {loading ? '⏳ Որոնվում է (խնդրում ենք սպասել)...' : 'Որոնել'}
+                </button>
+            </form>
 
-                {error && <p style={{ color: 'red', marginTop: '15px', textAlign: 'center' }}>{error}</p>}
+            {/* ՍԽԱԼԻ ՑՈՒՑԱԴՐՈՒՄ */}
+            {errorMsg && (
+                <div style={{ background: '#ffebee', color: '#c62828', padding: '15px', borderRadius: '10px', marginTop: '20px', fontWeight: 'bold' }}>
+                    ⚠️ {errorMsg}
+                </div>
+            )}
 
-                {aiResponse && (
-                    <div style={{
-                        marginTop: '30px',
-                        padding: '20px',
-                        background: '#f9f9f9',
-                        borderRadius: '10px',
-                        borderLeft: '5px solid #667eea',
-                        lineHeight: '1.6'
-                    }}>
-                        <h4 style={{ margin: '0 0 10px 0', color: '#764ba2' }}>Արդյունք՝</h4>
-                        <div
-                            style={{ color: '#444' }}
-                            dangerouslySetInnerHTML={{ __html: formatText(aiResponse) }}
-                        />
-                    </div>
-                )}
-            </div>
+            {/* ՈՉԻՆՉ ՉԳՏՆՎԵԼՈՒ ԴԵՊՔՈՒՄ */}
+            {!loading && jobs.length === 0 && searchTerm && !errorMsg && (
+                <div style={{ marginTop: '30px', color: '#567C8D', fontSize: '18px' }}>
+                    Աշխատանքներ չեն գտնվել: Փորձեք այլ բառեր (օրինակ՝ "video", "developer"):
+                </div>
+            )}
+
+            {/* ԱՐԴՅՈՒՆՔՆԵՐԻ ՔԱՐՏԵՐ */}
+            {!loading && jobs.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '25px', marginTop: '40px', textAlign: 'left' }}>
+                    {jobs.map((job) => (
+                        <Link key={job.id} to={`/jobs/${job.id}`} style={{ textDecoration: 'none' }}>
+                            <div style={{
+                                background: 'white', padding: '25px', borderRadius: '20px',
+                                border: '1px solid #C8D9E6', boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
+                                transition: 'transform 0.2s', cursor: 'pointer', height: '100%',
+                                boxSizing: 'border-box'
+                            }}
+                                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+                                 onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                            >
+                                <h3 style={{ color: '#2F4156', margin: '0 0 10px 0', fontSize: '18px' }}>{job.title}</h3>
+                                <p style={{ color: '#567C8D', fontWeight: 'bold', fontSize: '14px', margin: '0 0 15px 0' }}>🏢 {job.company || 'Ընկերությունը նշված չէ'}</p>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                    <span style={{ background: '#F5EFEB', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', color: '#2F4156' }}>
+                                        📍 {job.location || 'Yerevan'}
+                                    </span>
+                                    <span style={{ background: '#E8F1F8', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', color: '#2D82B7' }}>
+                                        💰 {job.salary_range || 'Պայմանագրային'}
+                                    </span>
+                                </div>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

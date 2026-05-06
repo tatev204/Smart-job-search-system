@@ -1,88 +1,55 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { login as apiLogin, register as apiRegister } from '../services/auth'
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import api from '../services/api';
 
+type User = { email: string; firstName: string; lastName: string; };
 type AuthContextType = {
-  token: string | null
-  userId: number | null
-  userEmail: string | null
-  firstName: string | null
-  lastName: string | null
-  login: (email: string, password: string) => Promise<void>
-  register: (firstName: string, lastName: string, email: string, password: string) => Promise<void>
-  logout: () => void
-}
+    user: User | null;
+    login: (email: string, password: string) => Promise<void>;
+    register: (firstName: string, lastName: string, email: string, password: string) => Promise<void>; // Ավելացված է
+    logout: () => void;
+};
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(null)
-  const [userId, setUserId] = useState<number | null>(null)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [firstName, setFirstName] = useState<string | null>(null)
-  const [lastName, setLastName] = useState<string | null>(null)
+    const [user, setUser] = useState<User | null>(null);
 
-  useEffect(() => {
-    try {
-      const t = localStorage.getItem('token')
-      const uid = localStorage.getItem('user_id')
-      const em = localStorage.getItem('user_email')
-      const fn = localStorage.getItem('user_firstName')
-      const ln = localStorage.getItem('user_lastName')
-      if (t) setToken(t)
-      if (uid) setUserId(Number(uid))
-      if (em) setUserEmail(em)
-      if (fn) setFirstName(fn)
-      if (ln) setLastName(ln)
-    } catch (e) {
-      // ignore
-    }
-  }, [])
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) setUser(JSON.parse(storedUser));
+    }, []);
 
-  const login = async (email: string, password: string) => {
-    const data = await apiLogin(email, password)
-    if (data?.token) {
-      localStorage.setItem('token', data.token)
-      if (data.user_id) localStorage.setItem('user_id', String(data.user_id))
-      if (data.email) localStorage.setItem('user_email', data.email)
-      setToken(data.token)
-      setUserId(data.user_id ?? null)
-      setUserEmail(data.email ?? null)
-    }
-  }
+    const login = async (email: string, password: string) => {
+        const res = await api.post('/login', { email, password });
+        if (res.data.token) {
+            const userData = { email, firstName: res.data.firstName, lastName: res.data.lastName };
+            localStorage.setItem('token', res.data.token);
+            localStorage.setItem('user', JSON.stringify(userData));
+            setUser(userData);
+        }
+    };
 
-  const register = async (firstName: string, lastName: string, email: string, password: string) => {
-    // Call backend register endpoint
-    await apiRegister(firstName, lastName, email, password)
-    // After successful registration, automatically log in the user
-    const data = await apiLogin(email, password)
-    if (data?.token) {
-      localStorage.setItem('token', data.token)
-      if (data.user_id) localStorage.setItem('user_id', String(data.user_id))
-      if (data.email) localStorage.setItem('user_email', data.email)
-      setToken(data.token)
-      setUserId(data.user_id ?? null)
-      setUserEmail(data.email ?? null)
-    }
-  }
+    const register = async (firstName: string, lastName: string, email: string, password: string) => {
+        const res = await api.post('/register', { firstName, lastName, email, password });
+        if (res.data.id) {
+            await login(email, password); // Գրանցվելուց հետո ավտոմատ մուտք
+        }
+    };
 
-  const logout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user_id')
-    localStorage.removeItem('user_email')
-    setToken(null)
-    setUserId(null)
-    setUserEmail(null)
-  }
+    const logout = () => {
+        localStorage.clear();
+        setUser(null);
+    };
 
-  return (
-    <AuthContext.Provider value={{ token, userId, userEmail, firstName, lastName, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
+    return (
+        <AuthContext.Provider value={{ user, login, register, logout }}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
-}
+    const context = useContext(AuthContext);
+    if (!context) throw new Error('useAuth must be used within AuthProvider');
+    return context;
+};

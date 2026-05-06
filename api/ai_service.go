@@ -19,39 +19,27 @@ type AIResult struct {
 
 func ProcessWithAI(ctx context.Context, cvText string) (*AIResult, error) {
 	llm, err := openai.New(
-		openai.WithToken("DVfJMbe8O11teCtJxgXkn2v2gJHaf5ENI21D1SIiGUfo94A0QraoJQQJ99CCACYeBjFXJ3w3AAABACOGV3SJ"),
-		openai.WithBaseURL("https://jobdb-ai-service.cognitiveservices.azure.com/"),
+		// ՃԻՇՏ տարբերակը. միայն base URL-ը
+		openai.WithBaseURL("https://diploma-openai.openai.azure.com/"),
+		openai.WithToken("2NustDEYdO8rwhXOypSYyFQa9EpAg3mOdJIYeKV23WKPS0ANcSj6JQQJ99CEACfhMk5XJ3w3AAABACOG9dkm"),
 		openai.WithAPIType(openai.APITypeAzure),
-		openai.WithModel("jobdb-gpt-model"),
+		openai.WithModel("gpt-4o"), // Սա ձեր Deployment Name-ն է
 		openai.WithAPIVersion("2024-12-01-preview"),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	prompt := fmt.Sprintf(`
-       Դու բարձրակարգ տեխնիկական HR մասնագետ ես: Վերլուծիր այս CV-ն և վերադարձրու ՄԻԱՅՆ JSON օբյեկտ:
-       
-       ՔՈ ԽՆԴԻՐՆԵՐԸ:
-       1. Որոշիր թեկնածուի հստակ մասնագիտությունը (Profession):
-       2. Առանձնացրու ՄԻԱՅՆ մասնագիտական/տեխնիկական հմտությունները (ExtractedSkills):
-       3. Գրիր կարճ մասնագիտական ամփոփում (Summary):
-
-       CV ՏԵՔՍՏ: %s
-
-       JSON-ի ԿԱՌՈՒՑՎԱԾՔԸ:
-       {
-         "profession": "օրինակ՝ Software Engineer",
-         "extracted_skills": ["Go", "Python", "Docker"],
-         "summary": "հակիրճ նկարագիր հայերենով",
-         "experience_level": "Junior/Mid/Senior"
-       }`, cvText)
+	prompt := "Analyze this CV and return ONLY a JSON object with keys: extracted_skills (list), summary (string), experience_level (string), profession (string). CV TEXT: " + cvText
 
 	resp, err := llm.Call(ctx, prompt, llms.WithTemperature(0.1))
 	if err != nil {
+		// Եթե այստեղ սխալ կա, այն կերևա քո Go տերմինալում
+		fmt.Println("AZURE CALL ERROR:", err)
 		return nil, err
 	}
 
+	// Մաքրում ենք JSON-ը հնարավոր markdown-ից
 	cleanJSON := strings.TrimSpace(resp)
 	cleanJSON = strings.TrimPrefix(cleanJSON, "```json")
 	cleanJSON = strings.TrimSuffix(cleanJSON, "```")
@@ -59,7 +47,8 @@ func ProcessWithAI(ctx context.Context, cvText string) (*AIResult, error) {
 
 	var result AIResult
 	if err := json.Unmarshal([]byte(cleanJSON), &result); err != nil {
-		return nil, fmt.Errorf("JSON parsing error: %v", err)
+		fmt.Println("JSON UNMARSHAL ERROR:", err, "RAW RESP:", resp)
+		return nil, err
 	}
 
 	return &result, nil

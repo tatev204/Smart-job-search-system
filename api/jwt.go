@@ -24,7 +24,6 @@ type UserToken struct {
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	// CORS header-ներ
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 
@@ -40,15 +39,18 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	var id int
 	var hash string
+	var firstName, lastName string // ՆՈՐ. Ավելացրել ենք այս փոփոխականները
+
+	// ՆՈՐ. Հարցման մեջ ավելացրել ենք firstname և lastname
 	// db-ն հասանելի է getapi.go-ից
-	err := db.QueryRow("SELECT id, password_hash FROM users WHERE email = $1", creds.Email).Scan(&id, &hash)
+	err := db.QueryRow("SELECT id, firstname, lastname, password_hash FROM users WHERE email = $1", creds.Email).Scan(&id, &firstName, &lastName, &hash)
 
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(creds.Password)) != nil {
 		http.Error(w, "Մուտքանունը կամ գաղտնաբառը սխալ է", http.StatusUnauthorized)
 		return
 	}
 
-	// Տոկենի ստեղծում (վավեր է 7 օր)
+	// Տոկենի ստեղծում
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &UserToken{
 		UserID: id,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -63,10 +65,14 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ՆՈՐ. Այստեղ Ֆրոնտենդին ենք ուղարկում նաև մարդու տվյալները
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"token":   tokenString,
-		"user_id": id,
-		"status":  "success",
+		"token":     tokenString,
+		"user_id":   id,
+		"firstName": firstName,
+		"lastName":  lastName,
+		"email":     creds.Email,
+		"status":    "success",
 	})
 }
 

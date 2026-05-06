@@ -55,7 +55,7 @@ func StartAPI(database *sql.DB) {
 	r.HandleFunc("/save-job", AuthMiddleware(SaveJobHandler)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/saved-jobs", AuthMiddleware(GetSavedJobsHandler)).Methods("GET", "OPTIONS")
 
-	r.HandleFunc("/ai/upload", AuthMiddleware(AIUploadHandler)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/ai/upload", AIUploadHandler).Methods("POST", "OPTIONS")
 	r.HandleFunc("/ai/match-cv", AuthMiddleware(AICVMatchHandler)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/ai/elastic-search", AIElasticSearchHandler).Methods("GET", "OPTIONS")
 	r.HandleFunc("/upload-resume", AuthMiddleware(UploadResumeHandler)).Methods("POST", "OPTIONS")
@@ -95,23 +95,25 @@ func GetJobHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	var j Job
 
-	err := db.QueryRow(`
-        SELECT id, title, 
-               COALESCE(company, ''), 
-               COALESCE(description, ''), 
-               COALESCE(location, ''), 
-               COALESCE(salary_range, ''),
-               COALESCE(full_description, ''),
-               COALESCE(phone_number, '')
-        FROM jobs WHERE id = $1`, id).
+	// 100% ապահովագրված SQL հարցում. բոլոր դաշտերը վերածում ենք TEXT-ի,
+	// որպեսզի COALESCE-ը խնդիր չառաջացնի INT կամ NULL արժեքների հետ:
+	query := `
+		SELECT id, 
+		       COALESCE(CAST(title AS TEXT), ''), 
+		       COALESCE(CAST(company AS TEXT), ''), 
+		       COALESCE(CAST(description AS TEXT), ''), 
+		       COALESCE(CAST(location AS TEXT), ''), 
+		       COALESCE(CAST(salary_range AS TEXT), ''),
+               COALESCE(CAST(full_description AS TEXT), ''),
+               COALESCE(CAST(phone_number AS TEXT), '')
+		FROM jobs WHERE id = $1`
+
+	err := db.QueryRow(query, id).
 		Scan(&j.ID, &j.Title, &j.Company, &j.Description, &j.Location, &j.Salary_Range, &j.FullDescription, &j.PhoneNumber)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "Job not found", http.StatusNotFound)
-		} else {
-			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
-		}
+		log.Printf("Կրիտիկական SQL ՍԽԱԼ GetJobHandler-ում (ID: %s): %v\n", id, err)
+		http.Error(w, "Աշխատանքը չի գտնվել", http.StatusNotFound)
 		return
 	}
 
@@ -236,6 +238,7 @@ func enableCORS(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
+		// ՍԱ ՇԱՏ ԿԱՐԵՎՈՐ Է
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return

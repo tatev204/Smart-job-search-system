@@ -1,66 +1,27 @@
-import React from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { getJobById } from '../services/jobs'
-import api from '../services/api'
-
-// --- ԽԵԼԱՑԻ ՖԻԼՏՐ (Ուղղված է TypeScript-ի սխալը) ---
-const cleanAndFormatDescription = (text?: string) => {
-    if (!text) return 'Նկարագրությունը բացակայում է:';
-
-    let result = text;
-
-    // 1. Գտնում ենք բուն նկարագրության սկիզբը և կտրում ենք վերևի ողջ աղբը (մենյուները, դիտումները)
-    const startRegex = /(Job Description:|Job responsibilities:|Required qualifications:|Աշխատանքի նկարագրություն:|Պարտականություններ:|Описание работы:)/i;
-    const startMatch = result.match(startRegex);
-    if (startMatch && startMatch.index !== undefined) {
-        result = result.substring(startMatch.index);
-    } else {
-        // Եթե ստանդարտ վերնագիր չկա, գոնե կտրենք staff.am-ի լեզուների մենյուն
-        const langMenu = result.match(/ՀԱՅ\n/);
-        if (langMenu && langMenu.index !== undefined) {
-            result = result.substring(langMenu.index + 4);
-        }
-    }
-
-    // 2. Կտրում ենք ներքևի աղբը (դիմելու ֆորմաները, input-ները)
-    const endRegex = /(Apply Now\s*Your application|Դիմել հիմա|First name\*|To apply by email|Salary\n.*USD|Learn more about this company|Professional Skills\nAdobe)/i;
-    const endMatch = result.match(endRegex);
-    if (endMatch && endMatch.index !== undefined) {
-        result = result.substring(0, endMatch.index);
-    }
-
-    // 3. Գեղեցկացնում ենք ենթավերնագրերը՝ դարձնելով դրանք մեծ և գունավոր
-    const headers = [
-        "Job Description:", "Job responsibilities:", "Required qualifications:",
-        "Additional Information:", "Professional Skills", "Soft skills",
-        "Աշխատանքի նկարագրություն:", "Պարտականություններ:", "Պահանջվող որակավորումներ:",
-        "Обязанности:", "Требования:", "What You Will Actually Create", "Who We Are Looking For", "What We Offer", "How To Apply"
-    ];
-
-    headers.forEach(header => {
-        const regex = new RegExp(`(${header})`, 'gi');
-        result = result.replace(regex, '<br/><br/><strong style="color: #667eea; font-size: 18px; display: block; margin-bottom: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">$1</strong>');
-    });
-
-    // 4. Սարքում ենք նոր տողերը (<br/>)
-    result = result.replace(/\n/g, '<br/>');
-
-    // 5. Մաքրում ենք ավելորդ դատարկ տողերը
-    result = result.replace(/(<br\/>\s*){3,}/g, '<br/><br/>');
-
-    return result.trim();
-}
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { getJobById } from '../services/jobs';
+import api from '../services/api';
 
 const VacancyDetail: React.FC = () => {
-    const { id } = useParams<{ id: string }>()
-    const navigate = useNavigate()
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+
+    // ՍԻՆՅՈՌԻ ԼՈՒԾՈՒՄ. Ստեղծում ենք գեղեցիկ ծանուցման վիճակ (state)
+    const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['job', id],
         queryFn: () => getJobById(id!),
         enabled: !!id,
-    })
+    });
+
+    const showNotification = (message: string, type: 'success' | 'error') => {
+        setNotification({ message, type });
+        // 3 վայրկյանից ավտոմատ փակում է ծանուցումը
+        setTimeout(() => setNotification(null), 3000);
+    };
 
     const handleSaveJob = async () => {
         if (!data) return;
@@ -69,97 +30,95 @@ const VacancyDetail: React.FC = () => {
             await api.post('/save-job', { job_id: data.id }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            alert('Աշխատանքը հաջողությամբ պահպանվեց Ձեր էջում!');
+            // Կանչում ենք մեր նոր, գեղեցիկ ծանուցումը հին alert-ի փոխարեն
+            showNotification('Ձեր աշխատանքը հաջողությամբ պահպանվեց:', 'success');
         } catch (error) {
-            console.error("Չհաջողվեց պահպանել", error);
-            alert('Խնդրում ենք մուտք գործել համակարգ աշխատանքը պահելու համար:');
+            showNotification('Խնդրում ենք մուտք գործել աշխատանքը պահպանելու համար:', 'error');
         }
     };
 
-    if (isLoading) return <div style={{ padding: '40px', textAlign: 'center' }}>⏳ Բեռնվում է...</div>
-    if (error || !data) return <div style={{ padding: '40px', textAlign: 'center' }}>❌ Աշխատանքը չի գտնվել</div>
-
-    // Կիրառում ենք մեր խելացի ֆիլտրը (Այլևս չի տա TypeScript-ի սխալ)
-    const formattedDesc = cleanAndFormatDescription(data.full_description || data.description || "");
+    if (isLoading) return <div style={{ padding: '60px', textAlign: 'center', fontSize: '24px', color: '#567C8D' }}>⏳ Բեռնվում են մանրամասները...</div>;
+    if (error || !data) return <div style={{ padding: '60px', textAlign: 'center', color: '#e74c3c', fontSize: '24px' }}>❌ Աշխատանքը չի գտնվել:</div>;
 
     return (
-        <div style={{ maxWidth: '900px', margin: '40px auto', padding: '32px', background: '#fff', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+        <div style={{ position: 'relative', maxWidth: '850px', margin: '40px auto', padding: '40px', background: '#fff', borderRadius: '16px', borderTop: '8px solid #567C8D', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
 
-            <button
-                onClick={() => navigate(-1)}
-                style={{ marginBottom: '24px', padding: '8px 16px', background: '#f0f0f0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}
-            >
+            {/* ԳԵՂԵՑԻԿ ԾԱՆՈՒՑՄԱՆ ՊԱՏՈՒՀԱՆԸ */}
+            {notification && (
+                <div style={{
+                    position: 'fixed', top: '30px', right: '30px', zIndex: 9999,
+                    background: notification.type === 'success' ? '#27ae60' : '#e74c3c',
+                    color: 'white', padding: '16px 24px', borderRadius: '12px',
+                    boxShadow: '0 8px 25px rgba(0,0,0,0.2)', fontSize: '16px', fontWeight: 'bold',
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    transition: 'all 0.3s ease-in-out'
+                }}>
+                    <span>{notification.type === 'success' ? '✅' : '⚠️'}</span>
+                    {notification.message}
+                </div>
+            )}
+
+            {/* ՀԵՏ ՎԵՐԱԴԱՌՆԱԼՈՒ ԿՈՃԱԿ */}
+            <button onClick={() => navigate(-1)} style={{ marginBottom: '24px', padding: '10px 20px', background: '#F5EFEB', color: '#2F4156', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }}>
                 ← Հետ
             </button>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-                <h2 style={{ margin: 0, color: '#333', fontSize: '26px', lineHeight: '1.4' }}>{data.title}</h2>
+            {/* ՎԵՐՆԱԳԻՐ ԵՎ ՊԱՀՊԱՆԵԼ ԿՈՃԱԿ */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginBottom: '15px' }}>
+                <h1 style={{ color: '#2F4156', fontSize: '36px', margin: 0 }}>{data.title}</h1>
+
                 <button
                     onClick={handleSaveJob}
-                    title="Պահել աշխատանքը"
+                    title="Պահպանել աշխատանքը"
                     style={{
-                        background: '#fff', border: '2px solid #ff9800', borderRadius: '50%',
-                        width: '45px', height: '45px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '22px', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0, marginLeft: '16px'
+                        padding: '12px 20px', background: '#fff', color: '#567C8D',
+                        border: '2px solid #567C8D', borderRadius: '8px', cursor: 'pointer',
+                        fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px',
+                        transition: '0.3s', whiteSpace: 'nowrap'
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#567C8D'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#567C8D'; }}
                 >
-                    🔖
+                    🔖 Պահպանել
                 </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '32px', paddingBottom: '24px', borderBottom: '2px solid #eee' }}>
+            <h3 style={{ color: '#567C8D', fontSize: '22px', marginBottom: '30px', marginTop: 0 }}>🏢 {data.company || 'Ընկերությունը նշված չէ'}</h3>
+
+            {/* ՄԱՆՐԱՄԱՍՆԵՐԻ ԲԼՈԿ */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px', padding: '20px', background: '#F8F9FA', borderRadius: '12px' }}>
                 <div>
-                    <p style={{ fontSize: '14px', color: '#888', margin: '0 0 4px 0' }}>Ընկերություն</p>
-                    <h3 style={{ margin: 0, color: '#764ba2', fontSize: '18px' }}>{data.company || 'Չի նշված'}</h3>
+                    <span style={{ color: '#999', fontSize: '14px', display: 'block', marginBottom: '5px' }}>Վայր</span>
+                    <strong style={{ fontSize: '18px', color: '#2F4156' }}>📍 {data.location || 'Չի նշված'}</strong>
                 </div>
                 <div>
-                    <p style={{ fontSize: '14px', color: '#888', margin: '0 0 4px 0' }}>Վայր</p>
-                    <p style={{ margin: 0, fontSize: '16px', fontWeight: '500' }}>📍 {data.location || 'Չի նշված'}</p>
-                </div>
-                <div>
-                    <p style={{ fontSize: '14px', color: '#888', margin: '0 0 4px 0' }}>Աշխատավարձ</p>
-                    <p style={{ margin: 0, fontSize: '16px', fontWeight: '500', color: '#4caf50' }}>💰 {data.salary_range || 'Negotiable'}</p>
+                    <span style={{ color: '#999', fontSize: '14px', display: 'block', marginBottom: '5px' }}>Աշխատավարձ</span>
+                    <strong style={{ fontSize: '18px', color: '#27ae60' }}>💰 {data.salary_range || 'Պայմանագրային'}</strong>
                 </div>
             </div>
 
-            {/* ՄԱՔՐՎԱԾ ԵՎ ԳԵՂԵՑԿԱՑՎԱԾ ՆԿԱՐԱԳՐՈՒԹՅՈՒՆ */}
-            <div>
-                <h3 style={{ marginBottom: '16px', color: '#333', fontSize: '20px' }}>📋 Նկարագրություն և Պահանջներ</h3>
-                <div
-                    style={{
-                        background: '#f8f9fa',
-                        padding: '24px',
-                        borderRadius: '8px',
-                        color: '#34495e',
-                        lineHeight: '1.8',
-                        fontSize: '15px',
-                        border: '1px solid #e0e0e0',
-                        overflowWrap: 'break-word'
-                    }}
-                    dangerouslySetInnerHTML={{ __html: formattedDesc }}
-                />
+            {/* ՆԿԱՐԱԳՐՈՒԹՅՈՒՆ */}
+            <h3 style={{ color: '#2F4156', marginBottom: '15px' }}>📋 Նկարագրություն</h3>
+            <div style={{ whiteSpace: 'pre-wrap', padding: '25px', background: '#fff', border: '1px solid #EAEAEA', borderRadius: '12px', lineHeight: '1.8', fontSize: '16px', color: '#444' }}>
+                {data.full_description || data.description || 'Նկարագրությունը բացակայում է:'}
             </div>
 
-            {/* ՀԵՌԱԽՈՍԱՀԱՄԱՐԸ ՁԱԽ ԿՈՂՄՈՒՄ */}
-            <div style={{ marginTop: '32px', textAlign: 'left' }}>
-                <button
-                    style={{
-                        padding: '14px 32px',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 6px rgba(102, 126, 234, 0.4)'
-                    }}
-                >
-                    {data.phone_number ? `📞 ${data.phone_number}` : '📞 Հեռախոսահամարը նշված չէ'}
-                </button>
+            {/* ՀԵՌԱԽՈՍԱՀԱՄԱՐԻ ԿՈՃԱԿ */}
+            <div style={{ marginTop: '40px', borderTop: '2px solid #F5EFEB', paddingTop: '30px' }}>
+                {data.phone_number ? (
+                    <a href={`tel:${data.phone_number}`} style={{ textDecoration: 'none' }}>
+                        <button style={{ padding: '16px 35px', background: '#27ae60', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px', transition: '0.2s', boxShadow: '0 4px 15px rgba(39, 174, 96, 0.3)' }}>
+                            📞 Զանգահարել: {data.phone_number}
+                        </button>
+                    </a>
+                ) : (
+                    <button disabled style={{ padding: '16px 35px', background: '#E0E0E0', color: '#888', border: 'none', borderRadius: '12px', fontSize: '18px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'not-allowed' }}>
+                        📞 Հեռախոսահամարը նշված չէ
+                    </button>
+                )}
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default VacancyDetail
+export default VacancyDetail;

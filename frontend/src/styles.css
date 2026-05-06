@@ -1,41 +1,37 @@
 :root {
-    /* Light theme variables */
-    --bg-primary: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    --bg-secondary: white;
-    --bg-tertiary: #f8f9fa;
+    /* Լուսավոր թեմայի փոփոխականներ */
+    --bg-primary: #fdfbf7;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #fdfbf7;
     --text-primary: #333;
     --text-secondary: #666;
     --text-muted: #999;
     --border-color: #e9ecef;
-    --shadow: rgba(0, 0, 0, 0.1);
-    --header-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --button-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --shadow: rgba(0, 0, 0, 0.05);
+
+    /* Header-ի և կոճակների գույնը */
+    --header-bg: #8c634a;
+    --button-primary: #8c634a;
     --button-secondary: #f0f0f0;
     --input-bg: white;
-    --input-border: #f0f0f0;
+    --input-border: #e2e8f0;
     --success: #28a745;
     --warning: #ffc107;
     --danger: #dc3545;
 }
 
 .dark {
-    /* Dark theme variables */
-    --bg-primary: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    /* Մութ թեմայի փոփոխականներ */
+    --bg-primary: #1a1a2e;
     --bg-secondary: #2a2a3e;
-    --bg-tertiary: #3a3a4e;
+    --bg-tertiary: #16213e;
     --text-primary: #ffffff;
     --text-secondary: #cccccc;
     --text-muted: #888888;
     --border-color: #444444;
     --shadow: rgba(0, 0, 0, 0.3);
-    --header-bg: linear-gradient(135deg, #4a4a6a 0%, #3a3a5a 100%);
-    --button-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --button-secondary: #4a4a4a;
-    --input-bg: #3a3a4e;
-    --input-border: #555555;
-    --success: #28a745;
-    --warning: #ffc107;
-    --danger: #dc3545;
+    --header-bg: #2a2a3e;
+    --button-primary: #667eea;
 }
 
 * {
@@ -58,6 +54,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    background: var(--bg-primary);
 }
 
 /* Header */
@@ -65,9 +62,9 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 24px;
+    padding: 16px 40px;
     background: var(--header-bg);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     color: white;
     position: sticky;
     top: 0;
@@ -101,233 +98,67 @@ body {
 }
 
 .app-header button {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
     color: white;
-    border: 1px solid white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: 500;
     transition: all 0.3s ease;
 }
 
 .app-header button:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-/* Header layout helpers */
-.app-header-left {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.app-header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-left: auto;
-}
-
-.language-switcher {
-    display: flex;
-    gap: 8px;
-}
-
-/* make sure links in right block don't wrap */
-.app-header-right a, .app-header-right button {
-    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.25);
 }
 
 /* Main Content */
 main {
     flex: 1;
     width: 100%;
+    background: var(--bg-primary);
 }
 
-/* Vacancy List */
+/* Job Cards & Lists */
 .vacancy-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 24px;
-    padding: 0;
+    padding: 20px 0;
 }
 
 .job-card {
     background: var(--bg-secondary);
-    border: none;
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
     transition: all 0.3s ease;
     cursor: pointer;
 }
 
 .job-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 }
 
 .job-card h3 {
     font-size: 20px;
     font-weight: 600;
     margin-bottom: 8px;
-    color: #667eea;
+    color: #8c634a;
 }
 
-.job-card p {
-    margin-bottom: 8px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-}
-
-.job-card a {
-    display: inline-block;
-    margin-top: 16px;
-    padding: 10px 20px;
-    background: var(--button-primary);
-    color: white;
-    text-decoration: none;
-    border-radius: 6px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}
-
-.job-card a:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-/* Job Detail */
-.job-detail {
-    background: var(--bg-secondary);
-    padding: 32px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-.job-detail h2 {
-    font-size: 32px;
-    font-weight: 700;
-    margin-bottom: 16px;
-    color: #667eea;
-}
-
-.job-detail h3 {
-    font-size: 20px;
-    color: var(--text-secondary);
-    margin-bottom: 24px;
-}
-
-.job-detail p {
-    margin-bottom: 16px;
-    line-height: 1.6;
-}
-
-.description {
-    background: var(--bg-tertiary);
-    padding: 20px;
-    border-radius: 8px;
-    margin-top: 20px;
-    line-height: 1.8;
-    color: #555;
-    border-left: 4px solid #667eea;
-}
-
-/* Upload Page */
-.upload-page {
-    background: var(--bg-secondary);
-    padding: 32px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.upload-page h2 {
-    font-size: 28px;
-    font-weight: 700;
-    margin-bottom: 24px;
-    color: #667eea;
-}
-
-.upload-page form {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.upload-page input[type="file"] {
-    padding: 12px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: border-color 0.3s ease;
-}
-
-.upload-page input[type="file"]:hover {
-    border-color: #667eea;
-}
-
-.upload-page button {
-    padding: 12px 24px;
-    background: var(--button-primary);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.upload-page button:hover:not(:disabled) {
-    transform: scale(1.02);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.upload-page button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* Login Page */
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-form > div {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-form label {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
+/* Forms and Inputs */
 form input[type="text"],
 form input[type="password"],
 form input[type="email"] {
     padding: 12px 16px;
-    border: 2px solid #ddd;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     font-size: 16px;
+    background: var(--input-bg);
     transition: border-color 0.3s ease;
-    font-family: inherit;
-}
-
-form input[type="text"]:focus,
-form input[type="password"]:focus,
-form input[type="email"]:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 form button {
@@ -342,84 +173,13 @@ form button {
     transition: all 0.3s ease;
 }
 
-form button:hover:not(:disabled) {
-    transform: scale(1.02);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-form button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* Messages */
-.message {
-    margin-top: 16px;
-    padding: 12px 16px;
-    border-radius: 8px;
-    background: #e3f2fd;
-    color: #1976d2;
-    border-left: 4px solid #1976d2;
-}
-
-.message.error {
-    background: #ffebee;
-    color: #c62828;
-    border-left-color: #c62828;
-}
-
-/* Loading & Error States */
-.loading,
-.error {
-    text-align: center;
-    padding: 40px;
-    background: var(--bg-secondary);
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.loading {
-    font-size: 18px;
-    color: #667eea;
-}
-
-.error {
-    font-size: 18px;
-    color: #c62828;
-}
-
 /* Responsive */
 @media (max-width: 768px) {
     .app-header {
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .app-header nav {
-        flex-direction: column;
-        gap: 12px;
-        width: 100%;
-    }
-
-    .app-header a,
-    .app-header button {
-        width: 100%;
-        text-align: center;
-    }
-
-    .vacancy-list {
-        grid-template-columns: 1fr;
-    }
-
-    .job-detail {
-        padding: 20px;
+        padding: 16px 20px;
     }
 
     main {
-        padding: 0;
+        padding: 20px;
     }
-
-    #root > main {
-        padding: 0;
-    }
-} փոխիր գույնը 
+}

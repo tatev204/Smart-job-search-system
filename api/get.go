@@ -7,7 +7,7 @@ import (
 	"github.com/dslipak/pdf"
 )
 
-// ExtractTextFromPDF-ը հասանելի կլինի ամբողջ package-ին (այդ թվում textread.go-ին)
+// ExtractTextFromPDF-ը հասանելի կլինի ամբողջ package-ին
 func ExtractTextFromPDF(f io.ReaderAt, size int64) (string, error) {
 	r, err := pdf.NewReader(f, size)
 	if err != nil {
